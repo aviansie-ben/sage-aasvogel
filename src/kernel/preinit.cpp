@@ -15,17 +15,25 @@ extern uint8 _ld_kernel_end[];
 extern uint8 _ld_rodata_begin[];
 extern uint8 _ld_rodata_end[];
 extern uint8 _ld_text_begin[];
-extern uint8 _ld_text_end[]; 
+extern uint8 _ld_text_end[];
+extern uint8 _ld_setup_begin[];
+extern uint8 _ld_setup_end[];
 
 const uint8 _preinit_error_color = 0x04;
 
+enum page_flag
+{
+    PAGE_FLAG_PRESENT  = (1 << 0),
+    PAGE_FLAG_WRITABLE = (1 << 1)
+};
+
 // All PDEs and PTEs need to have the present bit set, and all non-read-only
 // PTEs need to have the writable bit set.
-const uint32 _preinit_pdpte_flags      = 0b000000001;
-const uint32 _preinit_pde_flags        = 0b000000011;
-const uint32 _preinit_pte_flags        = 0b000000011;
-const uint32 _preinit_pte_flags_rodata = 0b000000001;
-const uint32 _preinit_pte_flags_text   = 0b000000001;
+const uint32 _preinit_pdpte_flags      = PAGE_FLAG_PRESENT;
+const uint32 _preinit_pde_flags        = PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE;
+const uint32 _preinit_pte_flags        = PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE;
+const uint32 _preinit_pte_flags_rodata = PAGE_FLAG_PRESENT;
+const uint32 _preinit_pte_flags_text   = PAGE_FLAG_PRESENT;
 
 typedef union
 {
@@ -123,7 +131,6 @@ extern "C" void _preinit_write_serial(const char* message)
 
 extern "C" void* _preinit_setup_paging(bool pae_supported)
 {
-    // TODO: Add support for non-PAE systems
     if (pae_supported) return _preinit_setup_paging_pae();
     else return _preinit_setup_paging_legacy();
 }
@@ -159,6 +166,8 @@ extern "C" void* _preinit_setup_paging_pae()
         if (virt_addr >= (uint32)&_ld_rodata_begin && virt_addr < (uint32)&_ld_rodata_end)
             flags = _preinit_pte_flags_rodata;
         else if (virt_addr >= (uint32)&_ld_text_begin && virt_addr < (uint32)&_ld_text_end)
+            flags = _preinit_pte_flags_text;
+        else if (phys_addr >= (uint32)&_ld_setup_begin && phys_addr < (uint32)&_ld_setup_end)
             flags = _preinit_pte_flags_text;
         else
             flags = _preinit_pte_flags;

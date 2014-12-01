@@ -13,11 +13,16 @@ SECTIONS
     .setup :
     {
         *(.mb_header)
+        
+        . = ALIGN(0x1000);
+        _ld_setup_begin = .;
         *(.setup)
+        _ld_setup_end = .;
+        
+        . = ALIGN(0x1000);
         *(.setup_data)
         
         . = ALIGN(0x1000);
-        
         *(.setup_pagedir)
     }
     
