@@ -1,0 +1,11 @@
+# Output directories
+bin/
+img/
+obj/
+
+# Output image
+sa.img
+
+# Geany files
+project.geany
+geany_run_script.sh
