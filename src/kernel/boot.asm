@@ -146,6 +146,7 @@ not_cpuid:
     call _preinit_error
     jmp $
 
+[section .setup_data]
 not_multiboot_error db "FATAL: Must boot with a multiboot-compliant bootloader!", 0x00
 not_cpuid_error db "FATAL: Processor does not support CPUID!", 0x00
 success_error db "FATAL: Booted successfully!", 0x00
