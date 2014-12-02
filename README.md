@@ -19,3 +19,7 @@ Note that the creation of the floppy disk image using `create-image.sh` requires
 ## Testing Sage Aasvogel
 
 The preferred method for testing Sage Aasvogel is by using a system emulator such as [qemu](http://www.qemu.org/) with an attached debugger. The included `emulate.sh` script will start qemu with 64MiB of RAM and the floppy disk image `sa.img` mounted on the first floppy drive. Once started, qemu will listen on port `1234` for a debugger to connect.
+
+## License
+
+Sage Aasvogel is released as open-source software under the terms of the GNU General Public License version 3. You can find a full copy of the license in markdown format in `LICENSE.md` or the official version on the [GNU Website](https://www.gnu.org/licenses/gpl.html).
