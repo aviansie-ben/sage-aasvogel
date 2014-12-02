@@ -10,8 +10,8 @@ object_directory=$1
 output_directory=$2
 
 asm_build="nasm -g -f elf"
-cpp_build="g++ -m32 -c -g -O0 -Wall -Werror -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions -fno-rtti -I$source_directory/include"
-linker="ld -m elf_i386 -T $source_directory/linker.ld"
+cpp_build="i686-elf-g++ -c -g -O0 -Wall -Werror -ffreestanding -nostdlib -fno-exceptions -fno-rtti -I$source_directory/include"
+linker="i686-elf-ld -T $source_directory/linker.ld"
 
 asm_files=$(find $source_directory -name '*.asm')
 cpp_files=$(find $source_directory -name '*.cpp')

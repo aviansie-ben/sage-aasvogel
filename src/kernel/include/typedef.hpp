@@ -1,6 +1,8 @@
 #ifndef __TYPEDEF_HPP__
 #define __TYPEDEF_HPP__
 
+#include <stddef.h>
+
 // Some features (e.g. assert) require that __PRETTY_FUNCTION__ be defined. If we
 // aren't using g++, we should fall back to __func__.
 #ifndef __GNUC__
@@ -29,8 +31,6 @@ typedef signed long long int64_t;
 typedef unsigned long long uint64_t;
 typedef int64_t int64;
 typedef uint64_t uint64;
-
-typedef uint32_t size_t;
 
 typedef struct
 {
