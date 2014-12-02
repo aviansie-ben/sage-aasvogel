@@ -82,10 +82,34 @@ boot:
     mov eax, 0x1
     cpuid
     
+    ; Bit 0x1 in EDX is 1 if an FPU was detected and 0 otherwise
+    mov eax, edx
+    and edx, 0x1
+    jz no_fpu
+    
     ; Bit 0x40 in EDX is 1 if PAE is supported and 0 otherwise
     and edx, 0x40
     shr edx, 6
     push edx
+
+fpu_init:
+    ; We must first check that the processor detected that the FPU is 80387-
+    ; compatible. We do not support the 80287. To do this, we check that the
+    ; ET bit in CR0 is set to 1.
+    mov eax, cr0
+    mov ebx, eax
+    and ebx, 0x10
+    jz no_fpu
+    
+    ; Now that we know that an FPU is present, we set up CR0 to allow it to be
+    ; used. To do this, we set the MP bit to 1, the EM bit to 0, and the NE bit
+    ; to 1.
+    and eax, ~0x4
+    or eax, 0x22
+    mov cr0, eax
+    
+    ; Now we actually request the FPU to initialize itself.
+    fninit
     
 setup_paging:
     ; Call C++ code to set up the paging directory so that the kernel gets
@@ -146,9 +170,15 @@ not_cpuid:
     call _preinit_error
     jmp $
 
+no_fpu:
+    push no_fpu_error
+    call _preinit_error
+    jmp $
+
 [section .setup_data]
 not_multiboot_error db "FATAL: Must boot with a multiboot-compliant bootloader!", 0x00
 not_cpuid_error db "FATAL: Processor does not support CPUID!", 0x00
+no_fpu_error db "FATAL: Processor does not have a 80387-compatible FPU!", 0x00
 success_error db "FATAL: Booted successfully!", 0x00
     
 ; Definition for the kernel-mode stack
