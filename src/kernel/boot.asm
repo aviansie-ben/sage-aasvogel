@@ -86,7 +86,7 @@ boot:
     
     ; Bit 0x1 in EDX is 1 if an FPU was detected and 0 otherwise
     mov eax, edx
-    and edx, 0x1
+    and eax, 0x1
     jz no_fpu
     
     ; Bit 0x40 in EDX is 1 if PAE is supported and 0 otherwise
