@@ -42,8 +42,10 @@ boot:
     cmp eax, 0x2BADB002
     jne not_multiboot
     
-    ; Save a copy of the multiboot information structure pointer that's
-    ; currently in EBX, as EBX will get clobbered during pre-initialization.
+    ; EBX contains a pointer to a multiboot information structure. Correct the
+    ; address to point to higher half memory and put it on the stack for later,
+    ; when we call the kernel_main function.
+    add ebx, 0xC0000000
     push ebx
     
     ; Initialize basic serial bus support. We use this to write debug messages
