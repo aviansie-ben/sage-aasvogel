@@ -6,6 +6,8 @@
 [extern _preinit_setup_paging]
 [extern _preinit_page_dir]
 
+[extern kernel_main]
+
 [extern _ld_ctor_begin]
 [extern _ld_ctor_end]
 
@@ -157,8 +159,16 @@ run_static_ctors:
     jb .call_ctor
     
 run_kernel:
-    push success_error
+    ; At this point, pre-initialization is complete and the environment is ready
+    ; to be able to run standard C++ code. The kernel_main function will handle
+    ; the rest...
+    call kernel_main
+    
+    ; kernel_main is not designed to return, so this code should never be
+    ; reached, but it is included just in case.
+    push kernel_return_error
     call _preinit_error
+    jmp $
 
 not_multiboot:
     push not_multiboot_error
@@ -179,7 +189,7 @@ no_fpu:
 not_multiboot_error db "FATAL: Must boot with a multiboot-compliant bootloader!", 0x00
 not_cpuid_error db "FATAL: Processor does not support CPUID!", 0x00
 no_fpu_error db "FATAL: Processor does not have a 80387-compatible FPU!", 0x00
-success_error db "FATAL: Booted successfully!", 0x00
+kernel_return_error db "FATAL: kernel_main has returned unexpectedly!", 0x00
     
 ; Definition for the kernel-mode stack
 [section .bss]
