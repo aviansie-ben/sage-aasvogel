@@ -59,7 +59,7 @@ struct multiboot_info
     uint32 drives_length;
     uint32 drives_addr;
     
-    // ROM configuration table. Requires flag MB_FLAG_CONFIG_TABLE.
+    // ROM configuration table. Requires flag MB_FLAG_CONFIG_TBL.
     uint32 config_table;
     
     // Boot loader name. Requires flag MB_FLAG_LOADER_NAME.

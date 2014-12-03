@@ -1,10 +1,13 @@
 [bits 32]
 [global boot]
 
+[extern _preinit_parse_cmdline]
 [extern _preinit_error]
 [extern _preinit_setup_serial]
+[extern _preinit_write_serial]
 [extern _preinit_setup_paging]
-[extern _preinit_page_dir]
+
+[extern _preinit_no_pae]
 
 [extern kernel_main]
 
@@ -41,6 +44,12 @@ boot:
     ; Check that we've been booted by a multiboot-compliant bootloader.
     cmp eax, 0x2BADB002
     jne not_multiboot
+    
+    ; Some kernel arguments passed in via the boot loader need to be parsed
+    ; before executing any pre-initialization code.
+    push ebx
+    call _preinit_parse_cmdline
+    pop ebx
     
     ; EBX contains a pointer to a multiboot information structure. Correct the
     ; address to point to higher half memory and put it on the stack for later,
@@ -97,6 +106,10 @@ boot:
     push edx
 
 fpu_init:
+    push serial_dbg_init_fpu
+    call _preinit_write_serial
+    add esp, 4
+    
     ; We must first check that the processor detected that the FPU is 80387-
     ; compatible. We do not support the 80287. To do this, we check that the
     ; ET bit in CR0 is set to 1.
@@ -129,11 +142,19 @@ setup_paging:
     cmp edx, 0
     je .enable
     
+    mov eax, [_preinit_no_pae]
+    test eax, eax
+    jnz .enable
+    
     mov ecx, cr4
     or ecx, 0x20
     mov cr4, ecx
 
 .enable:
+    push serial_dbg_enable_paging
+    call _preinit_write_serial
+    add esp, 4
+    
     ; Enable paging and enable the WP bit to ensure we're not changing read-only
     ; memory.
     mov eax, cr0
@@ -146,6 +167,10 @@ setup_paging:
     add esp, 0xC0000000
 
 run_static_ctors:
+    push serial_dbg_static_ctors
+    call _preinit_write_serial
+    add esp, 4
+    
     ; Memory from _ld_ctor_begin to _ld_ctor_end contains a list of static class
     ; constructor functions that we should call before jumping into the kernel
     ; proper.
@@ -161,6 +186,10 @@ run_static_ctors:
     jb .call_ctor
     
 run_kernel:
+    push serial_dbg_kernel_main
+    call _preinit_write_serial
+    add esp, 4
+    
     ; At this point, pre-initialization is complete and the environment is ready
     ; to be able to run standard C++ code. The kernel_main function will handle
     ; the rest...
@@ -192,6 +221,11 @@ not_multiboot_error db "FATAL: Must boot with a multiboot-compliant bootloader!"
 not_cpuid_error db "FATAL: Processor does not support CPUID!", 0x00
 no_fpu_error db "FATAL: Processor does not have a 80387-compatible FPU!", 0x00
 kernel_return_error db "FATAL: kernel_main has returned unexpectedly!", 0x00
+
+serial_dbg_init_fpu db "Initializing FPU...", 0x0D, 0x0A, 0x00
+serial_dbg_enable_paging db "Enabling pre-initialization paging...", 0x0D, 0x0A, 0x00
+serial_dbg_static_ctors db "Running C++ static constructors...", 0x0D, 0x0A, 0x00
+serial_dbg_kernel_main db "Calling into kernel_main...", 0x0D, 0x0A, 0x00
     
 ; Definition for the kernel-mode stack
 [section .bss]

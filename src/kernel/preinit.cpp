@@ -6,6 +6,7 @@
  */
 
 #include <typedef.hpp>
+#include <multiboot.hpp>
 
 #define __section__(s) __attribute__((section(s)))
 
@@ -46,8 +47,14 @@ char _preinit_serial_init_msg[] __section__(".setup_data") = "Serial port initia
 char _preinit_serial_page_legacy_msg[] __section__(".setup_data") = "Setting up pre-initialization paging without PAE support...\r\n";
 char _preinit_serial_page_pae_msg[] __section__(".setup_data") = "Setting up pre-initialization paging with PAE support...\r\n";
 
-char _preinit_pae_unsupported_error[] __section__(".setup_data") = "FATAL: CPU does not support PAE!";
 char _preinit_kernel_too_big_error[] __section__(".setup_data") = "FATAL: Kernel is too big for statically allocated page tables!";
+
+char _preinit_cmdline_serial_debug[] __section__(".setup_data") = "preinit_serial";
+char _preinit_cmdline_no_pae[] __section__(".setup_data") = "no_pae";
+
+bool _preinit_serial_enable __section__(".setup_data");
+bool _preinit_no_pae __section__(".setup_data");
+
 uint16 _preinit_serial_port __section__(".setup_data");
 
 page_struct_t _preinit_page_dir __attribute__((section(".setup_pagedir"), aligned(0x1000)));
@@ -57,10 +64,15 @@ uint64 _preinit_page_dir_ptr_table[4] __attribute__((section(".setup_pagedir"), 
 extern "C" void _preinit_outb(uint16 port, uint8 data) __section__(".setup");
 extern "C" uint8 _preinit_inb(uint16 port) __section__(".setup");
 
+extern "C" void _preinit_parse_cmdline(multiboot_info* mb_info) __section__(".setup");
+extern "C" bool _preinit_cmdline_option_set(const char* cmdline, const char* option) __section__(".setup");
+
 extern "C" void _preinit_error(const char* message) __attribute__((section(".setup"), noreturn));
+
 extern "C" void _preinit_setup_serial() __section__(".setup");
 extern "C" void _preinit_write_serial(const char* message) __section__(".setup");
 extern "C" void* _preinit_setup_paging(bool pae_supported) __section__(".setup");
+
 extern "C" void* _preinit_setup_paging_pae() __section__(".setup");
 extern "C" void* _preinit_setup_paging_legacy() __section__(".setup");
 
@@ -74,6 +86,53 @@ extern "C" uint8 _preinit_inb(uint16 port)
     uint8 data;
     asm volatile ("inb %1, %0" : "=a" (data) : "dN" (port));
     return data;
+}
+
+extern "C" void _preinit_parse_cmdline(multiboot_info* mb_info)
+{
+    // If the boot loader didn't provide a cmdline, just use the defaults...
+    if ((mb_info->flags & MB_FLAG_CMDLINE) == 0) return;
+    
+    const char* cmdline = (const char*) mb_info->cmdline_addr;
+    
+    _preinit_serial_enable = _preinit_cmdline_option_set(cmdline, _preinit_cmdline_serial_debug);
+    _preinit_no_pae = _preinit_cmdline_option_set(cmdline, _preinit_cmdline_no_pae);
+}
+
+extern "C" bool _preinit_cmdline_option_set(const char* cmdline, const char* option)
+{
+    int matched = 0; // Number of characters of the option that have been matched
+    bool skip = true; // We skip the first part, since it is the location of the kernel binary
+    
+    while (*cmdline != '\0')
+    {
+        if (!skip)
+        {
+            // When not skipping characters, compare them to the next expected character
+            if (*cmdline == option[matched])
+                matched++;
+            else
+                skip = true;
+        }
+        
+        // Stop skipping characters and reset the matched count if we reach a space
+        if (*cmdline == ' ')
+        {
+            skip = false;
+            matched = 0;
+        }
+        
+        cmdline++;
+        
+        // Check if we've found the requested option.
+        if (option[matched] == '\0' && (*cmdline == ' ' || *cmdline == '\0'))
+        {
+            return true;
+        }
+    }
+    
+    // We didn't find the requested option.
+    return false;
 }
 
 extern "C" void _preinit_error(const char* message)
@@ -99,6 +158,8 @@ extern "C" void _preinit_error(const char* message)
 
 extern "C" void _preinit_setup_serial()
 {
+    if (!_preinit_serial_enable) return;
+    
     _preinit_serial_port = *((uint16*) 0x400);
     
     // Disable interrupts (We haven't set up an IDT yet!)
@@ -131,7 +192,7 @@ extern "C" void _preinit_write_serial(const char* message)
 
 extern "C" void* _preinit_setup_paging(bool pae_supported)
 {
-    if (pae_supported) return _preinit_setup_paging_pae();
+    if (pae_supported && !_preinit_no_pae) return _preinit_setup_paging_pae();
     else return _preinit_setup_paging_legacy();
 }
 
