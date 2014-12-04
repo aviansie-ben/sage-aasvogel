@@ -9,7 +9,7 @@ source_directory=$(dirname $(readlink -f "$0"))
 object_directory=$1
 output_directory=$2
 
-asm_build="nasm -g -f elf"
+asm_build="i686-elf-as -g"
 cpp_build="i686-elf-g++ -c -g -O0 -Wall -Werror -ffreestanding -nostdlib -fno-exceptions -fno-rtti -I$source_directory/include"
 linker="i686-elf-ld -T $source_directory/linker.ld"
 

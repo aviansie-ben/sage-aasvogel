@@ -10,7 +10,7 @@ This is an experimental OS designed solely for educational purposes. I am not in
 
 ## Building Sage Aasvogel
 
-Before building Sage Aasvogel, you first need to have built a proper cross compiler for the `i686-elf` platform. The tested development environment uses GCC 4.7.4 and GNU Binutils 2.24. The `i686-elf-g++` and `i686-elf-ld` commands must also be in your `PATH` environment variable. In addition to this, you will also need to install `nasm` in order to be able to compile the assembly code source files.
+Before building Sage Aasvogel, you first need to have built a proper cross compiler for the `i686-elf` platform. The tested development environment uses GCC 4.7.4 and GNU Binutils 2.24. The `i686-elf-g++`, `i686-elf-as`, and `i686-elf-ld` commands must also be in your `PATH` environment variable.
 
 Once you have all the required programs installed, you can build the entire Sage Aasvogel project by running the `build-all.sh` script. This will build all components of the system and then run the `create-image.sh` to package a new floppy image for testing. By default, the image is packaged in the project directory as `sa.img`, but this can be changed in the script.
 
