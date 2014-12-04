@@ -76,8 +76,7 @@ boot:
     cpuid
     
     # Bit 0x1 in EDX is 1 if an FPU was detected and 0 otherwise
-    mov eax, edx
-    and eax, 0x1
+    test edx, 0x1
     jz no_fpu
     
     # Bit 0x40 in EDX is 1 if PAE is supported and 0 otherwise
@@ -118,7 +117,8 @@ setup_paging:
     # CR3.
     mov cr3, eax
     
-    # If PAE is supported, it should be enabled now
+    # If PAE is supported and was not explicitly disabled, it should be enabled
+    # now.
     cmp edx, 0
     je .enable
     
@@ -197,15 +197,15 @@ no_fpu:
     jmp $
 
 .section .setup_data
-not_multiboot_error: .ascii "FATAL: Must boot with a multiboot-compliant bootloader!"
-not_cpuid_error: .ascii "FATAL: Processor does not support CPUID!"
-no_fpu_error: .ascii "FATAL: Processor does not have a 80387-compatible FPU!"
-kernel_return_error: .ascii "FATAL: kernel_main has returned unexpectedly!"
+not_multiboot_error: .ascii "FATAL: Must boot with a multiboot-compliant bootloader!\0"
+not_cpuid_error: .ascii "FATAL: Processor does not support CPUID!\0"
+no_fpu_error: .ascii "FATAL: Processor does not have a 80387-compatible FPU!\0"
+kernel_return_error: .ascii "FATAL: kernel_main has returned unexpectedly!\0"
 
-serial_dbg_init_fpu: .ascii "Initializing FPU...\r\n"
-serial_dbg_enable_paging: .ascii "Enabling pre-initialization paging...\r\n"
-serial_dbg_static_ctors: .ascii "Running C++ static constructors...\r\n"
-serial_dbg_kernel_main: .ascii "Calling into kernel_main...\r\n"
+serial_dbg_init_fpu: .ascii "Initializing FPU...\r\n\0"
+serial_dbg_enable_paging: .ascii "Enabling pre-initialization paging...\r\n\0"
+serial_dbg_static_ctors: .ascii "Running C++ static constructors...\r\n\0"
+serial_dbg_kernel_main: .ascii "Calling into kernel_main...\r\n\0"
 
 # Definition for the kernel-mode stack
 .section .bss
