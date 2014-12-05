@@ -37,7 +37,9 @@ typedef struct
     uint32 gs, fs, es, ds;
     uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
     uint32 int_no, err_code;
-    uint32 eip, cs, eflags, useresp, ss;
+    uint32 eip, cs, eflags;
+    
+    uint32 useresp, ss;
 } regs32_t;
 typedef regs32_t regs32;
 
