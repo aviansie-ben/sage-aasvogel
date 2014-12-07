@@ -122,9 +122,9 @@ setup_paging:
     cmp edx, 0
     je .enable
     
-    mov eax, [_preinit_no_pae]
+    mov eax, [_preinit_pae_enabled]
     test eax, eax
-    jnz .enable
+    jz .enable
     
     mov ecx, cr4
     or ecx, 0x20
