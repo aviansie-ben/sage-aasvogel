@@ -154,7 +154,7 @@ run_static_ctors:
     # Memory from _ld_ctor_begin to _ld_ctor_end contains a list of static class
     # constructor functions that we should call before jumping into the kernel
     # proper.
-    mov ebx, _ld_ctor_begin
+    mov ebx, offset _ld_ctor_begin
     jmp .test
     
 .call_ctor:
@@ -162,7 +162,7 @@ run_static_ctors:
     add ebx, 4
 
 .test:
-    cmp ebx, _ld_ctor_end
+    cmp ebx, offset _ld_ctor_end
     jb .call_ctor
     
 run_kernel:
