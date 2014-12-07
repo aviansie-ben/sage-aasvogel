@@ -34,6 +34,11 @@ SECTIONS
     {
         _ld_text_begin = .;
         *(.text)
+        
+        *(.init-head)
+        *(.init)
+        *(.init-foot)
+        
         _ld_text_end = .;
     }
     
@@ -47,15 +52,6 @@ SECTIONS
     .data ALIGN(0x1000) : AT(ADDR(.data) - 0xC0000000)
     {
         _ld_data_begin = .;
-        
-        /* We need to know where the ctor section begins and ends in order to be
-           able to execute C++ constructors on class objects that are defined
-           statically. */
-        _ld_ctor_begin = .;
-        *(.ctor*)
-        _ld_ctor_end = .;
-        
-        *(.dtor*)
         *(.data)
         _ld_data_end = .;
     }

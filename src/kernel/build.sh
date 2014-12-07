@@ -63,7 +63,7 @@ do
 done
 
 echo "  Running linker..."
-if ! $linker -o $output_directory/kernel.bin $(find $objdir -name '*.o') $(i686-elf-g++ -print-file-name=crtbegin.o) $(i686-elf-g++ -print-file-name=crtend.o)
+if ! $linker -o $output_directory/kernel.bin $(i686-elf-g++ -print-file-name=crtbegin.o) $(find $objdir -name '*.o') $(i686-elf-g++ -print-file-name=crtend.o)
 then
     exit 1
 fi

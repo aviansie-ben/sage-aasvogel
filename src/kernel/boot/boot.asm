@@ -151,19 +151,7 @@ run_static_ctors:
     call _preinit_write_serial
     add esp, 4
     
-    # Memory from _ld_ctor_begin to _ld_ctor_end contains a list of static class
-    # constructor functions that we should call before jumping into the kernel
-    # proper.
-    mov ebx, offset _ld_ctor_begin
-    jmp .test
-    
-.call_ctor:
-    call [ebx]
-    add ebx, 4
-
-.test:
-    cmp ebx, offset _ld_ctor_end
-    jb .call_ctor
+    call _init
     
 run_kernel:
     push offset serial_dbg_kernel_main
