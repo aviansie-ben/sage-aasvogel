@@ -9,6 +9,12 @@
 	#define __PRETTY_FUNCTION__ __func__
 #endif
 
+// The build script usually defines __SOURCE_FILE__ for us when building. If, for
+// some reason, it's missing, fall back to __FILE__.
+#ifndef __SOURCE_FILE__
+    #define __SOURCE_FILE__ __FILE__
+#endif
+
 #define magic_breakpoint() asm volatile ("xchg %bx, %bx");
 #define hang() magic_breakpoint(); while (true) { asm volatile ("cli; hlt"); }
 
