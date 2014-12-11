@@ -11,7 +11,8 @@ output_directory=$2
 
 asm_build="i686-elf-as -g"
 cpp_build="i686-elf-g++ -c -g -O0 -Wall -Werror -ffreestanding -nostdlib -fno-exceptions -fno-rtti -I$source_directory/include"
-linker="i686-elf-ld -T $source_directory/linker.ld"
+linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-g++ -print-file-name=libgcc.a)) $(i686-elf-g++ -print-file-name=crtbegin.o)"
+linker_suffix="$(i686-elf-g++ -print-file-name=crtend.o) -lgcc"
 
 asm_files=$(find $source_directory -name '*.asm')
 cpp_files=$(find $source_directory -name '*.cpp')
@@ -63,7 +64,7 @@ do
 done
 
 echo "  Running linker..."
-if ! $linker -o $output_directory/kernel.bin $(i686-elf-g++ -print-file-name=crtbegin.o) $(find $objdir -name '*.o') $(i686-elf-g++ -print-file-name=crtend.o)
+if ! $linker -o $output_directory/kernel.bin $(find $objdir -name '*.o') $linker_suffix
 then
     exit 1
 fi
