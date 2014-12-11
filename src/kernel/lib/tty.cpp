@@ -9,6 +9,115 @@ namespace tty
     TTYVirtualConsole boot_console(console::CONSOLE_WIDTH, console::CONSOLE_HEIGHT, boot_console_buf);
 
     TTYVirtualConsole* active_console = &boot_console;
+    
+    TTY& TTY::operator <<(const char* msg)
+    {
+        while (*msg != '\0')
+        {
+            *this << *msg;
+            msg++;
+        }
+        
+        return *this;
+    }
+    
+    TTY& TTY::operator <<(uint64 num)
+    {
+        const char* chars = "0123456789ABCDEF";
+        char temp[65];
+        uint32 i = 0;
+        
+        // Use successive division to find each character
+        while (num != 0)
+        {
+            temp[i++] = chars[num % num_base];
+            num /= num_base;
+        }
+        
+        // Because successive division starts with the least significant digit, we must
+        // reverse the string to display it properly.
+        for (uint32 j = 0; j < (i / 2); j++)
+        {
+            char t = temp[j];
+            temp[j] = temp[i - j - 1];
+            temp[i - j - 1] = t;
+        }
+        
+        // If we had a zero, successive division would return an empty string. We don't
+        // want that, so if we get an empty string, append a 0.
+        if (i == 0)
+            temp[i++] = chars[0];
+        
+        // Add a null terminator to the end of the string
+        temp[i] = '\0';
+        
+        // Actually print out the string...
+        return *this << temp;
+    }
+    
+    TTY& TTY::operator <<(uint32 num)
+    {
+        // There is a second function for 32-bit integers because 64-bit arithmetic
+        // makes function calls to libgcc, whereas 32-bit arithmetic does not. We
+        // try to avoid making those function calls unless absolutely necessary.
+        
+        const char* chars = "0123456789ABCDEF";
+        char temp[33];
+        uint32 i = 0;
+        
+        // Use successive division to find each character
+        while (num != 0)
+        {
+            temp[i++] = chars[num % num_base];
+            num /= num_base;
+        }
+        
+        // Because successive division starts with the least significant digit, we must
+        // reverse the string to display it properly.
+        for (uint32 j = 0; j < (i / 2); j++)
+        {
+            char t = temp[j];
+            temp[j] = temp[i - j - 1];
+            temp[i - j - 1] = t;
+        }
+        
+        // If we had a zero, successive division would return an empty string. We don't
+        // want that, so if we get an empty string, append a 0.
+        if (i == 0)
+            temp[i++] = chars[0];
+        
+        // Add a null terminator to the end of the string
+        temp[i] = '\0';
+        
+        // Actually print out the string...
+        return *this << temp;
+    }
+    
+    TTY& TTY::operator <<(int64 num)
+    {
+        // If the number is negative, print out the negative sign...
+        if (num < 0)
+        {
+            *this << '-';
+            num = -num;
+        }
+        
+        // We defer to the unsigned version to actually display the number.
+        return *this << ((uint64)num);
+    }
+    
+    TTY& TTY::operator <<(int32 num)
+    {
+        // If the number is negative, print out the negative sign...
+        if (num < 0)
+        {
+            *this << '-';
+            num = -num;
+        }
+        
+        // We defer to the unsigned version to actually display the number.
+        return *this << ((uint32)num);
+    }
 
     TTYVirtualConsole::TTYVirtualConsole(uint16 width, uint16 height, uint8* buffer)
         : width(width), height(height), cursor_hidden(false), cursor_x(0), cursor_y(0),
@@ -96,7 +205,7 @@ namespace tty
         return *this;
     }
 
-    TTYVirtualConsole& TTYVirtualConsole::operator <<(char c)
+    TTY& TTYVirtualConsole::operator <<(char c)
     {
         if (c == '\n')
         {
@@ -114,17 +223,6 @@ namespace tty
             
             cursor_x++;
             if (cursor_x >= width) { cursor_y++; cursor_x = 0; }
-        }
-        
-        return *this;
-    }
-
-    TTYVirtualConsole& TTYVirtualConsole::operator <<(const char* msg)
-    {
-        while (*msg != '\0')
-        {
-            *this << *msg;
-            msg++;
         }
         
         return *this;

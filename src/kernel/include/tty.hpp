@@ -28,13 +28,25 @@ namespace tty
     class TTY
     {
     public:
+        TTY() : num_base(10) { }
+        
         virtual void setColor(TTYColor bg, TTYColor fg) = 0;
+        
+        void setBase(uint8 base) { num_base = base; }
         
         virtual void flush() = 0;
         virtual void clear() = 0;
         
         virtual TTY& operator <<(char c) = 0;
-        virtual TTY& operator <<(const char* msg) = 0;
+        
+        TTY& operator <<(const char* msg);
+        
+        TTY& operator <<(uint64 num);
+        TTY& operator <<(uint32 num);
+        TTY& operator <<(int64 num);
+        TTY& operator <<(int32 num);
+    private:
+        uint8 num_base;
     };
 
     class TTYVirtualConsole : public TTY
@@ -71,8 +83,9 @@ namespace tty
         
         TTYVirtualConsole& operator =(const TTYVirtualConsole& rhs);
         
-        virtual TTYVirtualConsole& operator <<(char c);
-        virtual TTYVirtualConsole& operator <<(const char* msg);
+        virtual TTY& operator <<(char c);
+        
+        using TTY::operator <<;
     private:
         uint16 width, height;
         
