@@ -1,4 +1,5 @@
 #include <typedef.hpp>
+#include <memory/mem.hpp>
 
 extern "C" int __cxa_atexit(void (*destructor)(void*), void* arg, void* __dso_handle)
 {
@@ -13,8 +14,7 @@ extern "C" void __cxa_pure_virtual()
 
 void* operator new(size_t size) throw()
 {
-    // TODO: Implement this
-    return 0;
+    return mem::kmalloc(size, 0, 0);
 }
 
 void* operator new(size_t size, void* ptr)
@@ -24,8 +24,7 @@ void* operator new(size_t size, void* ptr)
 
 void* operator new[](size_t size) throw()
 {
-    // TODO: Implement this
-    return 0;
+    return mem::kmalloc(size, 0, 0);
 }
 
 void* operator new[](size_t size, void* ptr)
@@ -35,10 +34,10 @@ void* operator new[](size_t size, void* ptr)
 
 void operator delete(void* ptr)
 {
-    // TODO: Implement this
+    mem::kfree(ptr);
 }
 
 void operator delete[](void* ptr)
 {
-    // TODO: Implement this
+    mem::kfree(ptr);
 }

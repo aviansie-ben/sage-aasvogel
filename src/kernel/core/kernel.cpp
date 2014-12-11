@@ -7,6 +7,8 @@
 #include <core/gdt.hpp>
 #include <core/idt.hpp>
 
+#include <memory/mem.hpp>
+
 using tty::boot_console;
 
 extern "C" void kernel_main(multiboot_info* mb_info)
@@ -15,6 +17,8 @@ extern "C" void kernel_main(multiboot_info* mb_info)
     
     boot_console.hideCursor();
     boot_console.activate();
+    
+    mem::init(mb_info);
     
     cpuid::init();
     
