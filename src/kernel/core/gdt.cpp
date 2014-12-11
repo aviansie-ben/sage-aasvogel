@@ -1,4 +1,5 @@
 #include <core/gdt.hpp>
+#include <core/crash.hpp>
 
 namespace gdt
 {
@@ -43,7 +44,8 @@ namespace gdt
     
     void set(uint8 n, uint32 base, uint32 limit, uint8 access, uint8 flags)
     {
-        if (n >= NUM_GDT_ENTRIES) return; // TODO: Crash?
+        if (n >= NUM_GDT_ENTRIES)
+            crash("Attempt to set GDT entry beyond end of GDT!");
         
         // Set the GDT entry's base address
         entries[n].base_low = base & 0xFFFF;

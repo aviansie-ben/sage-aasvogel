@@ -1,4 +1,5 @@
 #include <core/idt.hpp>
+#include <core/crash.hpp>
 #include <hwio.hpp>
 
 typedef void (*asm_int_handler)();
@@ -137,7 +138,8 @@ namespace idt
     
     void set(uint16 n, uint32 offset, uint16 selector, uint8 flags)
     {
-        if (n < 0 || n >= NUM_IDT_ENTRIES) return; // TODO: Crash?
+        if (n >= NUM_IDT_ENTRIES)
+            crash("Attempt to set IDT entry beyond end of IDT!");
         
         // Set the offset address
         entries[n].offset_low = offset & 0xFFFF;
