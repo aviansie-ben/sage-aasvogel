@@ -121,14 +121,16 @@ namespace tty
 
     TTYVirtualConsole::TTYVirtualConsole(uint16 width, uint16 height, uint8* buffer)
         : width(width), height(height), cursor_hidden(false), cursor_x(0), cursor_y(0),
-          cur_color(DEFAULT_VIRTUAL_CONSOLE_COLOR), active(false), buffer_static(true), buffer(buffer)
+          cur_color(DEFAULT_VIRTUAL_CONSOLE_COLOR), active(false), buffer_static(true),
+          buffer_line(0), buffer(buffer)
     {
         clear();
     }
 
     TTYVirtualConsole::TTYVirtualConsole(uint16 width, uint16 height)
         : width(width), height(height), cursor_hidden(false), cursor_x(0), cursor_y(0),
-          cur_color(DEFAULT_VIRTUAL_CONSOLE_COLOR), active(false), buffer_static(false), buffer(0)
+          cur_color(DEFAULT_VIRTUAL_CONSOLE_COLOR), active(false), buffer_static(false),
+          buffer_line(0), buffer(0)
     {
         buffer = new uint8[width * height * 2];
         clear();
@@ -137,7 +139,7 @@ namespace tty
     TTYVirtualConsole::TTYVirtualConsole(const TTYVirtualConsole& clone_of)
         : width(clone_of.width), height(clone_of.height), cursor_hidden(clone_of.cursor_hidden),
           cursor_x(clone_of.cursor_x), cursor_y(clone_of.cursor_y), cur_color(clone_of.cur_color),
-          active(false), buffer_static(false), buffer(0)
+          active(false), buffer_static(false), buffer_line(clone_of.buffer_line), buffer(0)
     {
         buffer = new uint8[width * height * 2];
         
@@ -159,7 +161,8 @@ namespace tty
     {
         if (active)
         {
-            console::draw_buffer(buffer, width, height, 0, 0);
+            console::draw_buffer(buffer + (width * buffer_line * 2), width, height - buffer_line, 0, 0);
+            if (buffer_line != 0) console::draw_buffer(buffer, width, buffer_line, 0, height - buffer_line);
             
             if (cursor_hidden) console::hide_cursor();
             else console::move_cursor(cursor_x, cursor_y);
@@ -197,6 +200,7 @@ namespace tty
         cursor_y = rhs.cursor_y;
         cur_color = rhs.cur_color;
         
+        buffer_line = rhs.buffer_line;
         for (uint32 i = 0; i < (uint32)(width * height); i++)
             buffer[i] = rhs.buffer[i];
         
@@ -212,19 +216,39 @@ namespace tty
             cursor_x = 0;
             cursor_y++;
             
+            if (cursor_y >= height) rotate_buffer();
+            
             flush();
         }
         else
         {
-            uint32 buf_pos = ((cursor_y * width) + cursor_x) * 2;
+            uint32 buf_pos = ((((cursor_y + buffer_line) % height) * width) + cursor_x) * 2;
             
             buffer[buf_pos] = c;
             buffer[buf_pos + 1] = cur_color;
             
             cursor_x++;
             if (cursor_x >= width) { cursor_y++; cursor_x = 0; }
+            
+            if (cursor_y >= height) rotate_buffer();
         }
         
         return *this;
+    }
+    
+    void TTYVirtualConsole::rotate_buffer()
+    {
+        for (uint16 x = 0; x < width; x++)
+        {
+            uint32 buf_pos = ((buffer_line * width) + x) * 2;
+            
+            buffer[buf_pos] = ' ';
+            buffer[buf_pos + 1] = cur_color;
+        }
+        
+        cursor_y--;
+        buffer_line++;
+        
+        if (buffer_line >= height) buffer_line = 0;
     }
 }

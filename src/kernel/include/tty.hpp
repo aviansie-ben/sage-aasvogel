@@ -88,6 +88,8 @@ namespace tty
         
         using TTY::operator <<;
     private:
+        void rotate_buffer();
+        
         uint16 width, height;
         
         bool cursor_hidden;
@@ -96,6 +98,7 @@ namespace tty
         uint8 cur_color;
         
         bool active, buffer_static;
+        uint16 buffer_line;
         uint8* buffer;
     };
 
