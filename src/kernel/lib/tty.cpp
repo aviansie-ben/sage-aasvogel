@@ -7,6 +7,8 @@ namespace tty
 
     static uint8 boot_console_buf[console::CONSOLE_WIDTH * console::CONSOLE_HEIGHT * 2];
     TTYVirtualConsole boot_console(console::CONSOLE_WIDTH, console::CONSOLE_HEIGHT, boot_console_buf);
+    
+    TTYNull null_tty;
 
     TTYVirtualConsole* active_console = &boot_console;
     

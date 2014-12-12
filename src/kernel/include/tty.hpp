@@ -101,9 +101,29 @@ namespace tty
         uint16 buffer_line;
         uint8* buffer;
     };
+    
+    class TTYNull : public TTY
+    {
+    public:
+        TTYNull() { }
+        
+        virtual void setColor(TTYColor bg, TTYColor fg) { }
+        
+        virtual void flush() { }
+        virtual void clear() { }
+        
+        virtual uint16 getWidth() const { return 0; }
+        virtual uint16 getHeight() const { return 0; }
+        
+        virtual TTY& operator <<(char c) { return *this; }
+        
+        using TTY::operator <<;
+    };
 
     extern TTYVirtualConsole boot_console;
     extern TTYVirtualConsole* active_console;
+    
+    extern TTYNull null_tty;
 }
 
 #endif
