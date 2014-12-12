@@ -30,9 +30,9 @@ extern "C" void _preinit_setup_serial()
     // Disable interrupts (We haven't set up an IDT yet!)
     _preinit_outb(_preinit_serial_port + 1, 0x00);
     
-    // Set the divisor to 3 (38400 baud)
+    // Set the divisor to 12 (9600 baud)
     _preinit_outb(_preinit_serial_port + 3, 0x80);
-    _preinit_outb(_preinit_serial_port + 0, 0x03);
+    _preinit_outb(_preinit_serial_port + 0, 0x0C);
     _preinit_outb(_preinit_serial_port + 1, 0x00);
     
     // Set the mode to 8N1

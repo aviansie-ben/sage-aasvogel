@@ -37,6 +37,9 @@ namespace tty
         virtual void flush() = 0;
         virtual void clear() = 0;
         
+        virtual uint16 getWidth() const = 0;
+        virtual uint16 getHeight() const = 0;
+        
         virtual TTY& operator <<(char c) = 0;
         
         TTY& operator <<(const char* msg);
@@ -57,8 +60,8 @@ namespace tty
         TTYVirtualConsole(const TTYVirtualConsole& clone_of);
         ~TTYVirtualConsole();
         
-        uint16 getWidth() const { return width; }
-        uint16 getHeight() const { return height; }
+        virtual uint16 getWidth() const { return width; }
+        virtual uint16 getHeight() const { return height; }
         
         uint8* getBuffer() { return buffer; }
         const uint8* getBuffer() const { return buffer; }
@@ -69,9 +72,7 @@ namespace tty
         virtual void setColor(TTYColor bg, TTYColor fg);
         
         bool isActive() const { return active; }
-        void activate() {
-            active = true;
-            flush(); }
+        void activate() { active = true; flush(); }
         void deactivate() { active = false; }
         
         bool isCursorShown() { return !cursor_hidden; }
