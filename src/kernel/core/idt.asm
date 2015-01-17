@@ -187,6 +187,7 @@ isr_4:
 isr_5:
     push 0
     push 5
+    jmp interrupt_common
     
 isr_6:
     push 0
