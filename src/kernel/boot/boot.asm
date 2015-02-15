@@ -108,8 +108,8 @@ fpu_init:
     fninit
     
 setup_paging:
-    # Call C++ code to set up the paging directory so that the kernel gets
-    # mapped at 0xC0000000.
+    # Call C code to set up the paging directory so that the kernel gets mapped
+    # at 0xC0000000.
     call _preinit_setup_paging
     pop edx
     
@@ -145,13 +145,6 @@ setup_paging:
     # version of the stack so we don't get any unwelcome surprises when the
     # kernel enables paging for real...
     add esp, 0xC0000000
-
-run_static_ctors:
-    push offset serial_dbg_static_ctors
-    call _preinit_write_serial
-    add esp, 4
-    
-    call _init
     
 run_kernel:
     push offset serial_dbg_kernel_main
@@ -159,9 +152,9 @@ run_kernel:
     add esp, 4
     
     # At this point, pre-initialization is complete and the environment is ready
-    # to be able to run standard C++ code. The kernel_main function will handle
+    # to be able to run standard C code. The kernel_main function will handle
     # the rest...
-    call kernel_main
+    # call kernel_main # TODO: Move to C
     
     # kernel_main is not designed to return, so this code should never be
     # reached, but it is included just in case.
@@ -192,7 +185,6 @@ kernel_return_error: .ascii "FATAL: kernel_main has returned unexpectedly!\0"
 
 serial_dbg_init_fpu: .ascii "Initializing FPU...\r\n\0"
 serial_dbg_enable_paging: .ascii "Enabling pre-initialization paging...\r\n\0"
-serial_dbg_static_ctors: .ascii "Running C++ static constructors...\r\n\0"
 serial_dbg_kernel_main: .ascii "Calling into kernel_main...\r\n\0"
 
 # Definition for the kernel-mode stack

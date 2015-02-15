@@ -5,7 +5,7 @@
  * this file SHOULD NOT BE ASSUMED TO WORK PROPERLY!
  */
 
-#include "preinit.hpp"
+#include "preinit.h"
 
 char _preinit_serial_stop_msg[] __section__(".setup_data") = "\r\nKernel pre-initialization failed! Hanging...\r\n";
 char _preinit_serial_init_msg[] __section__(".setup_data") = "Serial port initialized!\r\nPre-initialization in progress...\r\n";

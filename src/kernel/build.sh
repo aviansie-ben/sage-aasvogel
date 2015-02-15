@@ -10,12 +10,16 @@ object_directory=$1
 output_directory=$2
 
 asm_build="i686-elf-as -g"
-cpp_build="i686-elf-g++ -c -g -O0 -Wall -Werror -ffreestanding -nostdlib -fno-exceptions -fno-rtti -I$source_directory/include"
-linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-g++ -print-file-name=libgcc.a)) $(i686-elf-g++ -print-file-name=crtbegin.o)"
-linker_suffix="$(i686-elf-g++ -print-file-name=crtend.o) -lgcc"
+c_warnings="-Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align \
+            -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations \
+            -Wredundant-decls -Wnested-externs -Winline -Wno-long-long \
+            -Wuninitialized -Wconversion -Wstrict-prototypes"
+c_build="i686-elf-gcc -c -g -O0 -ffreestanding -std=gnu99 -I$source_directory/include $c_warnings"
+linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-gcc -print-file-name=libgcc.a))"
+linker_suffix="-lgcc"
 
 asm_files=$(find $source_directory -name '*.asm')
-cpp_files=$(find $source_directory -name '*.cpp')
+c_files=$(find $source_directory -name '*.c')
 
 echo "Building kernel..."
 
@@ -41,14 +45,14 @@ do
     fi
 done
 
-echo "  Compiling C++ files..."
-for src in $cpp_files
+echo "  Compiling C files..."
+for src in $c_files
 do
     echo "    Compiling ${src/$source_directory\//}..."
     
     # Find the object file name
     obj=${src/$source_directory/$object_directory}
-    obj=${obj/.cpp/.cpp.o}
+    obj=${obj/.c/.c.o}
     
     # Make sure the folder for the object file exists
     if [ ! -d $(dirname $obj) ]
@@ -56,8 +60,8 @@ do
         mkdir -p $(dirname $obj)
     fi
     
-    # Call the C++ compiler
-    if ! $cpp_build -D__SOURCE_FILE__='"'${src/$source_directory\//}'"' $src -o $obj
+    # Call the C compiler
+    if ! $c_build -D__SOURCE_FILE__='"'${src/$source_directory\//}'"' $src -o $obj
     then
         exit 1
     fi

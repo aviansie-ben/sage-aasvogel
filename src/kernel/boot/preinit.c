@@ -5,25 +5,27 @@
  * this file SHOULD NOT BE ASSUMED TO WORK PROPERLY!
  */
 
-#include "preinit.hpp"
+#include "preinit.h"
 
 const uint8 _preinit_error_color = 0x04;
 
 bool _preinit_no_pae __section__(".setup_data") = false;
 bool _preinit_serial_enable __section__(".setup_data") = false;
 
-extern "C" void _preinit_parse_cmdline(multiboot_info* mb_info)
+void _preinit_parse_cmdline(multiboot_info* mb_info)
 {
+    const char* cmdline;
+    
     // If the boot loader didn't provide a cmdline, just use the defaults...
     if ((mb_info->flags & MB_FLAG_CMDLINE) == 0) return;
     
-    const char* cmdline = (const char*) mb_info->cmdline_addr;
+    cmdline = (const char*) mb_info->cmdline_addr;
     
     _preinit_serial_enable = _preinit_cmdline_option_set(cmdline, _preinit_cmdline_serial_debug);
     _preinit_no_pae = _preinit_cmdline_option_set(cmdline, _preinit_cmdline_no_pae);
 }
 
-extern "C" bool _preinit_cmdline_option_set(const char* cmdline, const char* option)
+bool _preinit_cmdline_option_set(const char* cmdline, const char* option)
 {
     int matched = 0; // Number of characters of the option that have been matched
     bool skip = true; // We skip the first part, since it is the location of the kernel binary
@@ -59,16 +61,17 @@ extern "C" bool _preinit_cmdline_option_set(const char* cmdline, const char* opt
     return false;
 }
 
-extern "C" void _preinit_error(const char* message)
+void _preinit_error(const char* message)
 {
     // Pointer into the standard location for writing characters to the console
     uint8* video = (uint8*) 0xB8000;
+    size_t i;
     
     // Each character is printed individually, and the console color is set for each
     // printed character.
-    for (size_t i = 0; message[i] != '\0'; i++)
+    for (i = 0; message[i] != '\0'; i++)
     {
-        video[i * 2] = message[i];
+        video[i * 2] = (uint8) message[i];
         video[(i * 2) + 1] = _preinit_error_color;
     }
     

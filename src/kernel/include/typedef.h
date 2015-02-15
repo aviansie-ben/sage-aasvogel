@@ -1,7 +1,8 @@
-#ifndef __TYPEDEF_HPP__
-#define __TYPEDEF_HPP__
+#ifndef __TYPEDEF_H__
+#define __TYPEDEF_H__
 
 #include <stddef.h>
+#include <stdbool.h>
 
 // Some features (e.g. assert) require that __PRETTY_FUNCTION__ be defined. If we
 // aren't using g++, we should fall back to __func__.

@@ -36,7 +36,7 @@ interrupt_common:
     # part of the stack if we return into ring 3.
     
     push esp
-    call _idt_is_ring0
+    # call _idt_is_ring0 # TODO: Move to C
     add esp, 4
     cmp eax, 0
     je .do_call
@@ -58,9 +58,9 @@ interrupt_common:
     mov dword ptr [ebx + 0x4], 0
     
 .do_call:
-    # Call the C++ interrupt handler
+    # Call the C interrupt handler
     push esp
-    call _idt_handle
+    # call _idt_handle # TODO: Move to C
     add esp, 4
     
     # Now we need to check whether the code we're returning to is ring 0 code.
@@ -68,7 +68,7 @@ interrupt_common:
     # move the structure again...
     
     push esp
-    call _idt_is_ring0
+    # call _idt_is_ring0 # TODO: Move to C
     add esp, 4
     cmp eax, 0
     je .return

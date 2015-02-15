@@ -35,10 +35,6 @@ SECTIONS
         _ld_text_begin = .;
         *(.text)
         
-        *(.init-head)
-        *(.init)
-        *(.init-foot)
-        
         _ld_text_end = .;
     }
     

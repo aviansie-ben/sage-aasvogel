@@ -1,9 +1,9 @@
-#ifndef __MULTIBOOT_HPP__
-#define __MULTIBOOT_HPP__
+#ifndef __MULTIBOOT_H__
+#define __MULTIBOOT_H__
 
-#include <typedef.hpp>
+#include <typedef.h>
 
-enum multiboot_flag
+typedef enum
 {
     MB_FLAG_MEMORY      = (1 << 0),
     MB_FLAG_BOOTDEV     = (1 << 1),
@@ -17,17 +17,17 @@ enum multiboot_flag
     MB_FLAG_LOADER_NAME = (1 << 9),
     MB_FLAG_APM_TABLE   = (1 << 10),
     MB_FLAG_VIDEO_INFO  = (1 << 11),
-};
+} multiboot_flag;
 
-struct multiboot_elf_shdr_table
+typedef struct
 {
     uint32 num;
     uint32 size;
     uint32 addr;
     uint32 shndx;
-};
+} multiboot_elf_shdr_table;
 
-struct multiboot_info
+typedef struct
 {
     uint32 flags;
     
@@ -75,9 +75,9 @@ struct multiboot_info
     uint32 vbe_interface_seg;
     uint32 vbe_interface_off;
     uint32 vbe_interface_len;
-};
+} multiboot_info;
 
-struct multiboot_module_entry
+typedef struct
 {
     // Module is loaded from mod_start to mod_end - 1.
     uint32 mod_start;
@@ -88,9 +88,9 @@ struct multiboot_module_entry
     
     // Unused bytes
     uint32 reserved;
-};
+} multiboot_module_entry;
 
-struct multiboot_mmap_entry
+typedef struct
 {
     // The address and length of this memory section.
     uint64 base_addr;
@@ -98,6 +98,6 @@ struct multiboot_mmap_entry
     
     // 1 indicates available RAM. All other values indicate a reserved area.
     uint32 type;
-};
+} multiboot_mmap_entry;
 
 #endif
