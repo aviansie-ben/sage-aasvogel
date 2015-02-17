@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 // Some features (e.g. assert) require that __PRETTY_FUNCTION__ be defined. If we
-// aren't using g++, we should fall back to __func__.
+// aren't using gcc, we should fall back to __func__.
 #ifndef __GNUC__
 	#define __PRETTY_FUNCTION__ __func__
 #endif
