@@ -154,7 +154,7 @@ run_kernel:
     # At this point, pre-initialization is complete and the environment is ready
     # to be able to run standard C code. The kernel_main function will handle
     # the rest...
-    # call kernel_main # TODO: Move to C
+    call kernel_main
     
     # kernel_main is not designed to return, so this code should never be
     # reached, but it is included just in case.
