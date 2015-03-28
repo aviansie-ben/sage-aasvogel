@@ -30,13 +30,21 @@ interrupt_common:
     mov fs, ax
     mov gs, ax
     
+    # If we end up printing a stack trace, we don't want anything below this
+    # frame to be printed, so put some marker values on the stack.
+    mov edx, esp
+    push 0
+    push 0
+    mov ebp, esp
+    push edx
+    
     # Check whether the code we were in before the interrupt was ring 0 code.
     # Ring 0 code calling into an interrupt does not push useresp or ss, so we
     # need to make 8 bytes of room to store these values to avoid clobbering
     # part of the stack if we return into ring 3.
     
-    push esp
-    # call _idt_is_ring0 # TODO: Move to C
+    push edx
+    mov eax, 0 # call _idt_is_ring0 # TODO: Move to C
     add esp, 4
     cmp eax, 0
     je .do_call
@@ -44,7 +52,7 @@ interrupt_common:
     sub esp, 8
     mov eax, esp
     mov ebx, eax
-    add ebx, 0x44
+    add ebx, 0x4C
     
 .alloc_ring0:
     mov ecx, dword ptr [eax + 0x8]
@@ -59,23 +67,25 @@ interrupt_common:
     
 .do_call:
     # Call the C interrupt handler
-    push esp
-    # call _idt_handle # TODO: Move to C
+    mov edx, [esp]
+    push edx
+    call _idt_handle # TODO: Move to C
     add esp, 4
     
     # Now we need to check whether the code we're returning to is ring 0 code.
     # If it is, then useresp and ss won't get popped by IRET. So, we need to
     # move the structure again...
     
-    push esp
-    # call _idt_is_ring0 # TODO: Move to C
+    mov edx, [esp]
+    push edx
+    mov eax, 0 # call _idt_is_ring0 # TODO: Move to C
     add esp, 4
     cmp eax, 0
     je .return
     
     mov eax, esp
     mov ebx, eax
-    add ebx, 0x48
+    add ebx, 0x50
     add esp, 8
 
 .free_ring0:

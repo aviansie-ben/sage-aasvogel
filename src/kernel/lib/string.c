@@ -4,6 +4,25 @@
 
 static const char* itoa_values = "0123456789ABCDEF";
 
+void strcpy(char* dest, const char* src)
+{
+    while (*src != '\0')
+        *(dest++) = *(src++);
+    
+    *dest = '\0';
+}
+
+void strcat(char* dest, const char* src)
+{
+    while (*dest != '\0')
+        dest++;
+    
+    while (*src != '\0')
+        *(dest++) = *(src++);
+    
+    *dest = '\0';
+}
+
 static void reverse(char* s, size_t len)
 {
     uint32 i = 0, j = len - 1;

@@ -10,6 +10,8 @@
 #include <assert.h>
 #include <core/version.h>
 
+#include <core/unwind.h>
+
 void kernel_main(multiboot_info* mb_info);
 
 void kernel_main(multiboot_info* mb_info)

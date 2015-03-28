@@ -38,7 +38,7 @@ extern asm_int_handler _irq_handlers[IDT_NUM_IRQS];
 static idt_pointer idt_ptr;
 idt_entry idt_entries[IDT_NUM_ENTRIES];
 
-static interrupt_handler default_isr_handler;
+static interrupt_handler default_isr_handler = do_crash_unhandled_isr;
 static interrupt_handler isr_handlers[IDT_NUM_ISRS];
 static interrupt_handler irq_handlers[IDT_NUM_IRQS];
 
@@ -267,6 +267,7 @@ void _idt_handle(regs32* r)
     
     // Call the relevant handler
     if (handler != 0) (*handler)(r);
+    else if (r->int_no < IDT_NUM_ISRS) crash("Unhandled ISR!");
     
     // Perform IRQ post-handling code if needed
     if (r->int_no >= IDT_IRQS_START && r->int_no < IDT_IRQS_START + IDT_NUM_IRQS)

@@ -21,6 +21,14 @@ boot:
     # to higher-half yet!
     mov esp, offset (stack - 0xC0000000)
     
+    # If we unwind the stack, we cannot go below this frame, since it is the
+    # first frame... So we put some marker values to let the unwinder know that
+    # it should not go above here.
+    push 0
+    push 0
+    mov ebp, esp
+    add ebp, 0xC0000000
+    
     # Check that we've been booted by a multiboot-compliant bootloader.
     cmp eax, 0x2BADB002
     jne not_multiboot
