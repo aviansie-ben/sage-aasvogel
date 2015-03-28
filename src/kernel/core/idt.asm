@@ -98,7 +98,7 @@ interrupt_common:
     sub ebx, 4
     
     cmp ebx, eax
-    jge .free_ring0
+    jge .Lfree_ring0
 
 .Lreturn:
     # Pop registers back off of the stack
