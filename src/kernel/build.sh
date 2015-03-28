@@ -9,7 +9,6 @@ source_directory=$(dirname $(readlink -f "$0"))
 object_directory=$1
 output_directory=$2
 
-asm_build="i686-elf-as -g"
 c_warnings="-Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align \
             -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations \
             -Wredundant-decls -Wnested-externs -Winline -Wno-long-long \
@@ -18,7 +17,7 @@ c_build="i686-elf-gcc -c -g -O0 -ffreestanding -std=gnu99 -I$source_directory/in
 linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-gcc -print-file-name=libgcc.a))"
 linker_suffix="-lgcc"
 
-asm_files=$(find $source_directory -name '*.asm')
+asm_files=$(find $source_directory -name '*.s')
 c_files=$(find $source_directory -name '*.c')
 
 echo "Building kernel..."
@@ -30,7 +29,7 @@ do
     
     # Find the object file name
     obj=${src/$source_directory/$object_directory}
-    obj=${obj/.asm/.asm.o}
+    obj=${obj/.s/.s.o}
     
     # Make sure the folder for the object file exists
     if [ ! -d $(dirname $obj) ]
@@ -39,7 +38,7 @@ do
     fi
     
     # Call the assembly compiler
-    if ! $asm_build $src -o $obj
+    if ! $c_build -D__SOURCE_FILE__='"'${src/$source_directory\//}'"' $src -o $obj
     then
         exit 1
     fi
