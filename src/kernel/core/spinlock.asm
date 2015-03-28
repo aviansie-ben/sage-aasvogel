@@ -27,21 +27,21 @@ spinlock_acquire:
     
     mov eax, [ebp + 8]
     
-.retry:
+.Lretry:
     lock bts dword ptr [eax], 0 # Attempt to acquire the lock.
-    jnc .cleanup
+    jnc .Lcleanup
     
     # Wait until the lock appears to be free, then retry.
-.wait:
+.Lwait:
     pause # Tells the CPU that we're in a spinlock. Avoids problems when
           # hyperthreading is enabled.
     
     cmp dword ptr [eax], 0
-    jne .wait
+    jne .Lwait
     
-    jmp .retry
+    jmp .Lretry
     
-.cleanup:
+.Lcleanup:
     # Store the old value of the EFLAGS register in the spinlock to be restored
     # when spinlock_release is called.
     mov ecx, [ebp - 4]

@@ -128,17 +128,17 @@ setup_paging:
     # If PAE is supported and was not explicitly disabled, it should be enabled
     # now.
     cmp edx, 0
-    je .enable
+    je .Lenable
     
     mov eax, [_preinit_pae_enabled]
     test eax, eax
-    jz .enable
+    jz .Lenable
     
     mov ecx, cr4
     or ecx, 0x20
     mov cr4, ecx
 
-.enable:
+.Lenable:
     push offset serial_dbg_enable_paging
     call _preinit_write_serial
     add esp, 4

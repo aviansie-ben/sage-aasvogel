@@ -47,7 +47,7 @@ interrupt_common:
     call _idt_is_ring0
     add esp, 4
     cmp eax, 0
-    je .do_call
+    je .Ldo_call
     
     sub dword ptr [esp], 8
     sub esp, 8
@@ -56,18 +56,18 @@ interrupt_common:
     mov ebx, eax
     add ebx, 0x4C
     
-.alloc_ring0:
+.Lalloc_ring0:
     mov ecx, dword ptr [eax + 0x8]
     mov dword ptr [eax], ecx
     add eax, 4
     
     cmp eax, ebx
-    jl .alloc_ring0
+    jl .Lalloc_ring0
     
     mov dword ptr [ebx], 0
     mov dword ptr [ebx + 0x4], 0
     
-.do_call:
+.Ldo_call:
     # Call the C interrupt handler
     mov edx, [esp]
     push edx
@@ -83,7 +83,7 @@ interrupt_common:
     call _idt_is_ring0
     add esp, 4
     cmp eax, 0
-    je .return
+    je .Lreturn
     
     mov eax, esp
     mov ebx, eax
@@ -92,7 +92,7 @@ interrupt_common:
     add esp, 8
     add ebp, 8
 
-.free_ring0:
+.Lfree_ring0:
     mov ecx, dword ptr [ebx - 0x8]
     mov dword ptr [ebx], ecx
     sub ebx, 4
@@ -100,7 +100,7 @@ interrupt_common:
     cmp ebx, eax
     jge .free_ring0
 
-.return:
+.Lreturn:
     # Pop registers back off of the stack
     pop gs
     pop fs

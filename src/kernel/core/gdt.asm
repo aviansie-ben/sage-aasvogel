@@ -21,9 +21,9 @@ gdt_flush:
     mov ss, ax
     
     # The only way to update CS is with a far jump, so we do that here.
-    jmp 0x08 : .end
+    jmp 0x08 : .Lend
 
-.end:
+.Lend:
     ret
 
 tss_load:
