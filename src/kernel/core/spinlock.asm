@@ -5,9 +5,15 @@
 .globl spinlock_release
 
 spinlock_init:
-    mov eax, [esp + 4]
+    push ebp
+    mov ebp, esp
+    
+    mov eax, [ebp + 8]
     mov dword ptr [eax], 0
     mov dword ptr [eax + 4], 0
+    
+    mov esp, ebp
+    pop ebp
     ret
 
 spinlock_acquire:
