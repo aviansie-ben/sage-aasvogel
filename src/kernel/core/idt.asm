@@ -44,12 +44,14 @@ interrupt_common:
     # part of the stack if we return into ring 3.
     
     push edx
-    mov eax, 0 # call _idt_is_ring0 # TODO: Move to C
+    call _idt_is_ring0
     add esp, 4
     cmp eax, 0
     je .do_call
     
+    sub dword ptr [esp], 8
     sub esp, 8
+    sub ebp, 8
     mov eax, esp
     mov ebx, eax
     add ebx, 0x4C
@@ -69,7 +71,7 @@ interrupt_common:
     # Call the C interrupt handler
     mov edx, [esp]
     push edx
-    call _idt_handle # TODO: Move to C
+    call _idt_handle
     add esp, 4
     
     # Now we need to check whether the code we're returning to is ring 0 code.
@@ -78,7 +80,7 @@ interrupt_common:
     
     mov edx, [esp]
     push edx
-    mov eax, 0 # call _idt_is_ring0 # TODO: Move to C
+    call _idt_is_ring0
     add esp, 4
     cmp eax, 0
     je .return
@@ -86,7 +88,9 @@ interrupt_common:
     mov eax, esp
     mov ebx, eax
     add ebx, 0x50
+    add dword ptr [esp], 8
     add esp, 8
+    add ebp, 8
 
 .free_ring0:
     mov ecx, dword ptr [ebx - 0x8]

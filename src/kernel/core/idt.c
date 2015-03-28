@@ -43,6 +43,7 @@ static interrupt_handler isr_handlers[IDT_NUM_ISRS];
 static interrupt_handler irq_handlers[IDT_NUM_IRQS];
 
 void _idt_handle(regs32* r);
+bool _idt_is_ring0(regs32* r);
 
 static void remap_pic(uint8 offset_master, uint8 offset_slave)
 {
@@ -243,6 +244,11 @@ static void irq_end(regs32* r)
     
     // Always let the master PIC know we're done
     outb(MASTER_PIC_COMMAND, COMMAND_EOI);
+}
+
+bool _idt_is_ring0(regs32* r)
+{
+    return ((r->cs & 0x3) == 0x0);
 }
 
 void _idt_handle(regs32* r)
