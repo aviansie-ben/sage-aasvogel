@@ -4,7 +4,6 @@
 typedef struct
 {
     uint32 taken;
-    uint32 old_eflags;
 } spinlock;
 
 void spinlock_init(spinlock* lock);

@@ -43,9 +43,12 @@ spinlock_acquire:
     
 .Lcleanup:
     # Store the old value of the EFLAGS register in the spinlock to be restored
-    # when spinlock_release is called.
+    # when spinlock_release is called. The carry flag will not be stored, and
+    # will always be replaced with a 1, since that bit of the spinlock
+    # information is used for testing a lock.
     mov ecx, [ebp - 4]
-    mov [eax + 4], ecx
+    or ecx, 1
+    mov [eax], ecx
     
     mov esp, ebp
     pop ebp
@@ -58,10 +61,9 @@ spinlock_release:
     
     mov eax, [ebp + 8]
     
-    # Read and reset the old EFLAGS value.
-    mov ecx, [eax + 4]
+    # Read the old EFLAGS value.
+    mov ecx, [eax]
     mov [ebp - 4], ecx
-    mov dword ptr [eax + 4], 0
     
     # Free the lock.
     mov dword ptr [eax], 0
