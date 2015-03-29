@@ -1,5 +1,5 @@
-#ifndef __CPUID_H__
-#define __CPUID_H__
+#ifndef CORE_CPUID_H
+#define CORE_CPUID_H
 
 #include <typedef.h>
 

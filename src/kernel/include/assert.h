@@ -1,5 +1,5 @@
-#ifndef __ASSERT_H__
-#define __ASSERT_H__
+#ifndef ASSERT_H
+#define ASSERT_H
 
 #include <core/crash.h>
 

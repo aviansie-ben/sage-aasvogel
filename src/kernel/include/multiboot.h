@@ -1,5 +1,5 @@
-#ifndef __MULTIBOOT_H__
-#define __MULTIBOOT_H__
+#ifndef MULTIBOOT_H
+#define MULTIBOOT_H
 
 #include <typedef.h>
 

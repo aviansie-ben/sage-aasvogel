@@ -1,5 +1,5 @@
-#ifndef __UNWIND_H__
-#define __UNWIND_H__
+#ifndef CORE_UNWIND_H
+#define CORE_UNWIND_H
 
 typedef void (*frame_handler)(unsigned int eip, void* ebp);
 

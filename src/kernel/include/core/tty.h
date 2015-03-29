@@ -1,5 +1,5 @@
-#ifndef __TTY_H__
-#define __TTY_H__
+#ifndef CORE_TTY_H
+#define CORE_TTY_H
 
 #include <core/console.h>
 #include <lock.h>

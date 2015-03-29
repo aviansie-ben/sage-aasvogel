@@ -1,5 +1,5 @@
-#ifndef __VERSION_H__
-#define __VERSION_H__
+#ifndef CORE_VERSION_H
+#define CORE_VERSION_H
 
 #define OS_NAME "Sage Aasvogel"
 #define MAJOR_VERSION 0

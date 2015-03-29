@@ -1,5 +1,5 @@
-#ifndef __LOCK_H__
-#define __LOCK_H__
+#ifndef LOCK_H
+#define LOCK_H
 
 typedef struct
 {

@@ -1,5 +1,5 @@
-#ifndef __CONSOLE_H__
-#define __CONSOLE_H__
+#ifndef CORE_CONSOLE_H
+#define CORE_CONSOLE_H
 
 #include <typedef.h>
 

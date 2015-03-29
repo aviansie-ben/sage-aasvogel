@@ -1,5 +1,5 @@
-#ifndef __CRASH_H__
-#define __CRASH_H__
+#ifndef CORE_CRASH_H
+#define CORE_CRASH_H
 
 #include <typedef.h>
 

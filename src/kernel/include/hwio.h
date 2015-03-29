@@ -1,5 +1,5 @@
-#ifndef __HWIO_H__
-#define __HWIO_H__
+#ifndef HWIO_H
+#define HWIO_H
 
 #include <typedef.h>
 

@@ -1,5 +1,5 @@
-#ifndef __IDT_H__
-#define __IDT_H__
+#ifndef CORE_IDT_H
+#define CORE_IDT_H
 
 #include <typedef.h>
 

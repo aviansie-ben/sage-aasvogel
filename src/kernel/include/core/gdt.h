@@ -1,5 +1,5 @@
-#ifndef __GDT_H__
-#define __GDT_H__
+#ifndef CORE_GDT_H
+#define CORE_GDT_H
 
 #include <typedef.h>
 
