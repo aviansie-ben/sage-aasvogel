@@ -4,6 +4,8 @@
 #include <typedef.h>
 #include <multiboot.h>
 
+#define PREINIT_ERROR_COLOR 0x04
+
 #define __section__(s) __attribute__((section(s)))
 
 typedef union

@@ -7,8 +7,6 @@
 
 #include "preinit.h"
 
-const uint8 _preinit_error_color = 0x04;
-
 bool _preinit_no_pae __section__(".setup_data") = false;
 bool _preinit_serial_enable __section__(".setup_data") = false;
 
@@ -72,7 +70,7 @@ void _preinit_error(const char* message)
     for (i = 0; message[i] != '\0'; i++)
     {
         video[i * 2] = (uint8) message[i];
-        video[(i * 2) + 1] = _preinit_error_color;
+        video[(i * 2) + 1] = PREINIT_ERROR_COLOR;
     }
     
     // If possible, write the error message out to the serial port as well
