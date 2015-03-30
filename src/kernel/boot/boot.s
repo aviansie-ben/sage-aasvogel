@@ -87,6 +87,10 @@ boot:
     test edx, 0x1
     jz no_fpu
     
+    # Bit 0x8 in EDX is 1 if PSE is supported and 0 otherwise
+    test edx, 0x8
+    jz no_pse
+    
     # Bit 0x40 in EDX is 1 if PAE is supported and 0 otherwise
     and edx, 0x40
     shr edx, 6
@@ -124,6 +128,12 @@ setup_paging:
     # Move the address of the page directory set up by the above function into
     # CR3.
     mov cr3, eax
+    
+    # PSE support must be enabled. This is used for when PAE is unavailable and
+    # allows for 4MiB pages to be mapped when operating without PAE.
+    mov ecx, cr4
+    or ecx, 0x10
+    mov cr4, ecx
     
     # If PAE is supported and was not explicitly disabled, it should be enabled
     # now.
@@ -185,10 +195,16 @@ no_fpu:
     call _preinit_error
     jmp $
 
+no_pse:
+    push offset no_pse_error
+    call _preinit_error
+    jmp $
+
 .section .setup_data
 not_multiboot_error: .ascii "FATAL: Must boot with a multiboot-compliant bootloader!\0"
 not_cpuid_error: .ascii "FATAL: Processor does not support CPUID!\0"
 no_fpu_error: .ascii "FATAL: Processor does not have a 80387-compatible FPU!\0"
+no_pse_error: .ascii "FATAL: Processor does not support PSE!\0"
 kernel_return_error: .ascii "FATAL: kernel_main has returned unexpectedly!\0"
 
 serial_dbg_init_fpu: .ascii "Initializing FPU...\r\n\0"

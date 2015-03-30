@@ -12,18 +12,17 @@ SECTIONS
        0xC0000000, which is done by pre-initialization. */
     .setup :
     {
-        *(.mb_header)
-        
-        . = ALIGN(0x1000);
         _ld_setup_begin = .;
+        . = ALIGN(0x1000);
+        *(.mb_header)
         *(.setup)
-        _ld_setup_end = .;
         
         . = ALIGN(0x1000);
         *(.setup_data)
         
         . = ALIGN(0x1000);
         *(.setup_pagedir)
+        _ld_setup_end = .;
     }
     
     /* For all sections below here, addresses will assume that the kernel has
@@ -34,7 +33,6 @@ SECTIONS
     {
         _ld_text_begin = .;
         *(.text)
-        
         _ld_text_end = .;
     }
     
