@@ -54,7 +54,7 @@ interrupt_common:
     sub ebp, 8
     mov eax, esp
     mov ebx, eax
-    add ebx, 0x4C
+    add ebx, 0x50
     
 .Lalloc_ring0:
     mov ecx, dword ptr [eax + 0x8]
@@ -64,8 +64,14 @@ interrupt_common:
     cmp eax, ebx
     jl .Lalloc_ring0
     
-    mov dword ptr [ebx], 0
-    mov dword ptr [ebx + 0x4], 0
+    # Find the stack pointer that the ring 0 code was using before the interrupt
+    # was called.
+    mov [ebx], esp
+    add dword ptr [ebx], 0x58
+    
+    # Find the ring 0 code's SS value.
+    mov eax, ss
+    mov [ebx + 0x4], eax
     
 .Ldo_call:
     # Call the C interrupt handler
@@ -75,8 +81,8 @@ interrupt_common:
     add esp, 4
     
     # Now we need to check whether the code we're returning to is ring 0 code.
-    # If it is, then useresp and ss won't get popped by IRET. So, we need to
-    # move the structure again...
+    # If it is, then the ESP and SS values will not get popped by IRET, so we
+    # need to pop them manually.
     
     mov edx, [esp]
     push edx
@@ -85,22 +91,36 @@ interrupt_common:
     cmp eax, 0
     je .Lreturn
     
-    mov eax, esp
-    mov ebx, eax
-    add ebx, 0x50
-    add dword ptr [esp], 8
-    add esp, 8
-    add ebp, 8
-
-.Lfree_ring0:
-    mov ecx, dword ptr [ebx - 0x8]
-    mov dword ptr [ebx], ecx
-    sub ebx, 4
+    # Pop the SS value that we should switch to.
+    mov edx, [esp]
+    mov eax, [edx + 0x48]
+    mov ss, eax
     
-    cmp ebx, eax
-    jge .Lfree_ring0
+    # We will move to the new stack and shift the structure simultaneously.
+    mov esi, esp
+    mov ebx, esi
+    add esi, 0x4C
+    add ebx, 0x8
+    
+    mov edi, [edx + 0x44]
+    sub edi, 0x4
+    
+.Lfree_ring0:
+    mov eax, [esi]
+    mov [edi], eax
+    sub esi, 0x4
+    sub edi, 0x4
+    
+    cmp esi, ebx
+    jg .Lfree_ring0
+    
+    mov esp, edi
+    sub esp, 0x8
 
 .Lreturn:
+    # Skip some unneeded values to get to the actual register data
+    add esp, 0xC
+    
     # Pop registers back off of the stack
     pop gs
     pop fs
