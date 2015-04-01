@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <core/version.h>
 
-#include <core/unwind.h>
+#include <memory/early.h>
 
 void kernel_main(multiboot_info* mb_info);
 
@@ -30,6 +30,8 @@ void kernel_main(multiboot_info* mb_info)
     // Initialize the GDT and IDT
     gdt_init();
     idt_init();
+    
+    kmem_early_init(mb_info);
     
     hang();
 }

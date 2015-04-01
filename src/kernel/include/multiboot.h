@@ -92,6 +92,9 @@ typedef struct
 
 typedef struct
 {
+    // The size of this entry (not counting this field)
+    uint32 size;
+    
     // The address and length of this memory section.
     uint64 base_addr;
     uint64 length;
