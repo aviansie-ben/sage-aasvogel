@@ -11,6 +11,7 @@
 #include <core/version.h>
 
 #include <memory/early.h>
+#include <memory/phys.h>
 
 void kernel_main(multiboot_info* mb_info);
 
@@ -32,6 +33,7 @@ void kernel_main(multiboot_info* mb_info)
     idt_init();
     
     kmem_early_init(mb_info);
+    kmem_phys_init(mb_info);
     
     hang();
 }
