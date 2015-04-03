@@ -107,22 +107,28 @@ mem_block* kmem_block_alloc(bool kernel)
     
     for (r = low_region; r != NULL; r = r->next)
     {
-        for (pb = NULL, b = r->first_free; b != NULL; pb = b, b = b->next_free)
+        if (r->num_free > 0)
         {
-            assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
-            
-            if (!kernel && (b->flags & MEM_BLOCK_KERNEL_ONLY) == 0)
-                continue;
-            
-            b->flags &= (uint32)~MEM_BLOCK_FREE;
-            r->num_free--;
-            
-            if (pb == NULL)
-                r->first_free = b->next_free;
-            else
-                pb->next_free = b->next_free;
-            
-            return b;
+            spinlock_acquire(&r->lock);
+            for (pb = NULL, b = r->first_free; b != NULL; pb = b, b = b->next_free)
+            {
+                assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
+                
+                if (!kernel && (b->flags & MEM_BLOCK_KERNEL_ONLY) == 0)
+                    continue;
+                
+                b->flags &= (uint32)~MEM_BLOCK_FREE;
+                r->num_free--;
+                
+                if (pb == NULL)
+                    r->first_free = b->next_free;
+                else
+                    pb->next_free = b->next_free;
+                
+                spinlock_release(&r->lock);
+                return b;
+            }
+            spinlock_release(&r->lock);
         }
     }
     
@@ -136,6 +142,8 @@ void kmem_block_free(mem_block* block)
     assert((block->flags & MEM_BLOCK_FREE) != MEM_BLOCK_FREE);
     
     r = block->region;
+    
+    spinlock_acquire(&r->lock);
     r->num_free++;
     block->flags |= MEM_BLOCK_FREE;
     
@@ -150,4 +158,6 @@ void kmem_block_free(mem_block* block)
         block->next_free = pb->next_free;
         pb->next_free = block;
     }
+    
+    spinlock_release(&r->lock);
 }
