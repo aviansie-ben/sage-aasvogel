@@ -53,8 +53,7 @@ void kmem_phys_init(multiboot_info* info)
     low_region = create_region(0x00000000, (uint16)(info->mem_lower >> 2), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
     
     high_blocks_left = info->mem_upper >> 2;
-    // TODO Add 64-bit integer support to tprintf
-    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", (uint32) info->mem_upper);
+    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", info->mem_upper);
     
     while (high_blocks_left > 0)
     {

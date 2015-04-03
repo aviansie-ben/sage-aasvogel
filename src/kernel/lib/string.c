@@ -76,3 +76,41 @@ char* itoa(int val, char* s, unsigned int base)
     
     return s;
 }
+
+char* itoa_l(long long val, char* s, unsigned int base)
+{
+    bool neg = false;
+    int r;
+    size_t i = 0;
+    
+    assert(base <= 16);
+    
+    if (val == 0)
+    {
+        s[0] = '0';
+        s[1] = '\0';
+        return s;
+    }
+    
+    if (base == 10 && val < 0)
+    {
+        val = -val;
+        neg = true;
+    }
+    
+    while (val != 0)
+    {
+        r = (int)((unsigned long long)val % base);
+        val = (long long)((unsigned long long)val / base);
+        
+        s[i++] = (r < 0) ? itoa_values[(int)base + r] : itoa_values[r];
+    }
+    
+    if (neg)
+        s[i++] = '-';
+    
+    s[i] = '\0';
+    reverse(s, i);
+    
+    return s;
+}

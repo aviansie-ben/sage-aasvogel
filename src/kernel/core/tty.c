@@ -155,59 +155,88 @@ void tty_switch_vc(tty_vc* tty)
     spinlock_release(&tty->base.lock);
 }
 
+static void print_formatted(tty_base* tty, const char** format, char* buf, va_list* vararg)
+{
+    const char* s;
+    int i;
+    long long l;
+    
+    if ((*format)[0] == 's')
+    {
+        *format += 1;
+        
+        s = va_arg(*vararg, const char*);
+        tty_write(tty, s);
+    }
+    else if ((*format)[0] == 'd')
+    {
+        *format += 1;
+        
+        i = va_arg(*vararg, int);
+        itoa(i, buf, 10);
+        tty_write(tty, buf);
+    }
+    else if ((*format)[0] == 'x')
+    {
+        *format += 1;
+        
+        i = va_arg(*vararg, int);
+        itoa(i, buf, 16);
+        tty_write(tty, buf);
+    }
+    else if ((*format)[0] == 'l' && (*format)[1] == 'd')
+    {
+        *format += 2;
+        
+        l = va_arg(*vararg, long long);
+        itoa_l(l, buf, 10);
+        tty_write(tty, buf);
+    }
+    else if ((*format)[0] == 'l' && (*format)[1] == 'x')
+    {
+        *format += 2;
+        
+        l = va_arg(*vararg, long long);
+        itoa_l(l, buf, 16);
+        tty_write(tty, buf);
+    }
+    else if ((*format)[0] == '%')
+    {
+        *format += 1;
+        
+        tty->write(tty, '%');
+    }
+    else
+    {
+        crash("Bad tprintf format string!");
+    }
+}
+
 void tprintf(tty_base* tty, const char* format, ...)
 {
     va_list vararg;
     
     char ch;
-    
-    int i;
-    const char* s;
     char buf[256];
     
     va_start(vararg, format);
     
     spinlock_acquire(&tty->lock);
     
-    while ((ch = *format) != '\0')
+    while ((ch = *(format++)) != '\0')
     {
         if (ch == '%')
         {
-            ch = *(++format);
-            
-            switch (ch)
-            {
-                case 's':
-                    s = va_arg(vararg, const char*);
-                    tty_write(tty, s);
-                    break;
-                case 'd':
-                    i = va_arg(vararg, int);
-                    itoa(i, buf, 10);
-                    tty_write(tty, buf);
-                    break;
-                case 'x':
-                    i = va_arg(vararg, int);
-                    itoa(i, buf, 16);
-                    tty_write(tty, buf);
-                    break;
-                case '%':
-                    tty->write(tty, '%');
-                    break;
-                default:
-                    crash("Bad tprintf format string!");
-                    break;
-            }
+            print_formatted(tty, &format, buf, &vararg);
         }
         else
         {
             tty->write(tty, ch);
         }
-        
-        format++;
     }
     
     tty->flush(tty);
     
     spinlock_release(&tty->lock);
+    va_end(vararg);
 }
