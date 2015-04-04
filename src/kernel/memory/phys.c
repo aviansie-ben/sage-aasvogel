@@ -19,20 +19,20 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     
     region->physical_address = physical_address;
     region->next = NULL;
-    region->num_blocks = region->num_free = num_blocks;
+    region->num_blocks = num_blocks;
     
-    region->block_info = region->first_free = kmalloc_early(sizeof(mem_block) * num_blocks, 0x3, NULL);
+    region->block_info = kmalloc_early(sizeof(mem_block) * num_blocks, 0x3, NULL);
+    region->first_free = 0;
     
     for (i = 0; i < num_blocks; i++)
     {
         block = &region->block_info[i];
         
         block->region = region;
-        block->region_offset = (uint16)i;
         block->ref_count = 0;
         block->flags = MEM_BLOCK_FREE | block_flags;
         block->owner_pid = 0;
-        block->next_free = ((uint16)i == num_blocks - 1) ? NULL : (block + 1);
+        block->next_free = (i == (uint16)(num_blocks - 1)) ? (uint16)0xffff : (uint16)(i + 1);
     }
     
     return region;
@@ -74,7 +74,7 @@ void kmem_phys_init(multiboot_info* info)
 
 uint64 kmem_block_address(mem_block* block)
 {
-    return block->region->physical_address + (uint64)(block->region_offset << 12);
+    return block->region->physical_address + (uint64)((block - block->region->block_info) << 12);
 }
 
 mem_block* kmem_block_find(uint64 address)
@@ -107,10 +107,10 @@ mem_block* kmem_block_alloc(bool kernel)
     
     for (r = low_region; r != NULL; r = r->next)
     {
-        if (r->num_free > 0)
+        if (r->first_free != 0xffff)
         {
             spinlock_acquire(&r->lock);
-            for (pb = NULL, b = r->first_free; b != NULL; pb = b, b = b->next_free)
+            for (pb = NULL, b = &r->block_info[r->first_free]; b != NULL; pb = b, b = &r->block_info[b->next_free])
             {
                 assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
                 
@@ -118,7 +118,6 @@ mem_block* kmem_block_alloc(bool kernel)
                     continue;
                 
                 b->flags &= (uint32)~MEM_BLOCK_FREE;
-                r->num_free--;
                 
                 if (pb == NULL)
                     r->first_free = b->next_free;
@@ -144,19 +143,18 @@ void kmem_block_free(mem_block* block)
     r = block->region;
     
     spinlock_acquire(&r->lock);
-    r->num_free++;
     block->flags |= MEM_BLOCK_FREE;
     
-    if (r->first_free == NULL || block->region_offset < r->first_free->region_offset)
+    if (r->first_free == 0xffff || block - r->block_info < r->first_free)
     {
         block->next_free = r->first_free;
-        r->first_free = block;
+        r->first_free = (uint16)(block - r->block_info);
     }
     else
     {
-        for (pb = r->first_free; pb->next_free != NULL && pb->next_free->region_offset < block->region_offset; pb = pb->next_free) ;
+        for (pb = &r->block_info[r->first_free]; pb->next_free != 0xffff && pb->next_free < block - r->block_info; pb = &r->block_info[pb->next_free]) ;
         block->next_free = pb->next_free;
-        pb->next_free = block;
+        pb->next_free = (uint16)(block - r->block_info);
     }
     
     spinlock_release(&r->lock);

@@ -23,10 +23,9 @@ typedef struct mem_region
     uint64 physical_address;
     
     uint16 num_blocks;
-    uint16 num_free;
+    uint16 first_free;
     
     struct mem_block* block_info;
-    struct mem_block* first_free;
     
     struct mem_region* next;
 } mem_region;
@@ -34,14 +33,12 @@ typedef struct mem_region
 typedef struct mem_block
 {
     struct mem_region* region;
-    uint16 region_offset;
+    uint16 next_free;
     
     uint16 ref_count;
     
     uint32 flags;
     uint32 owner_pid;
-    
-    struct mem_block* next_free;
 } mem_block;
 
 void kmem_phys_init(multiboot_info* info);
