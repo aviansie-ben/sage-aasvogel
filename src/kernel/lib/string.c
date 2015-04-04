@@ -114,3 +114,28 @@ char* itoa_l(long long val, char* s, unsigned int base)
     
     return s;
 }
+
+void* memcpy(void* dest, const void* src, size_t size)
+{
+    uint8* dest8 = dest;
+    const uint8* src8 = src;
+    
+    while (size--)
+    {
+        *dest8++ = *src8++;
+    }
+    
+    return dest;
+}
+
+void* memset(void* ptr, int val, size_t size)
+{
+    uint8* ptr8 = ptr;
+    
+    while (size--)
+    {
+        *ptr8++ = (uint8) val;
+    }
+    
+    return ptr;
+}
