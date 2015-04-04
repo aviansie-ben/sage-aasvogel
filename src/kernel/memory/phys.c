@@ -14,6 +14,7 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     mem_region* region = kmalloc_early(sizeof(mem_region), __alignof__(mem_region), NULL);
     mem_block* block;
     uint32 i;
+    bool free = (block_flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE;
     
     spinlock_init(&region->lock);
     
@@ -22,17 +23,17 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     region->num_blocks = num_blocks;
     
     region->block_info = kmalloc_early(sizeof(mem_block) * num_blocks, __alignof__(mem_block), NULL);
-    region->first_free = 0;
+    region->first_free = (free) ? 0 : 0xffff;
     
     for (i = 0; i < num_blocks; i++)
     {
         block = &region->block_info[i];
         
         block->region = region;
-        block->ref_count = 0;
-        block->flags = MEM_BLOCK_FREE | block_flags;
+        block->ref_count = (free) ? 0 : 1;
+        block->flags = block_flags;
         block->owner_pid = 0;
-        block->next_free = (i == (uint16)(num_blocks - 1)) ? (uint16)0xffff : (uint16)(i + 1);
+        block->next_free = (i == (uint16)(num_blocks - 1)) ? 0xffff : (uint16)(i + 1);
     }
     
     return region;
@@ -57,7 +58,7 @@ void kmem_phys_init(multiboot_info* info)
     
     while (high_blocks_left > 0)
     {
-        next_region = create_region(0x00100000 + (i << 27), (high_blocks_left > 0x8000) ? (uint16)0x8000 : (uint16)high_blocks_left, 0);
+        next_region = create_region(0x00100000 + (i << 27), (high_blocks_left > 0x8000) ? (uint16)0x8000 : (uint16)high_blocks_left, MEM_BLOCK_FREE);
         
         if (prev_region != NULL)
             prev_region->next = next_region;
