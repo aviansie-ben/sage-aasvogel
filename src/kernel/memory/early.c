@@ -16,9 +16,10 @@ static bool verify_mask(size_t mask)
     return mask == 0x0;
 }
 
-void* kmalloc_early(size_t size, size_t align_mask, uint32* physical_address)
+void* kmalloc_early(size_t size, size_t align, uint32* physical_address)
 {
     uint32 r;
+    size_t align_mask = (align < 0x4) ? 0x3 : (align - 1);
     
     assert(init_done && !final_done);
     assert(verify_mask(align_mask));

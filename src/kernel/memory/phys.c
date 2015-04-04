@@ -11,7 +11,7 @@ static mem_region* high_region = NULL;
 
 static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uint32 block_flags)
 {
-    mem_region* region = kmalloc_early(sizeof(mem_region), 0x3, NULL);
+    mem_region* region = kmalloc_early(sizeof(mem_region), __alignof__(mem_region), NULL);
     mem_block* block;
     uint32 i;
     
@@ -21,7 +21,7 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     region->next = NULL;
     region->num_blocks = num_blocks;
     
-    region->block_info = kmalloc_early(sizeof(mem_block) * num_blocks, 0x3, NULL);
+    region->block_info = kmalloc_early(sizeof(mem_block) * num_blocks, __alignof__(mem_block), NULL);
     region->first_free = 0;
     
     for (i = 0; i < num_blocks; i++)
