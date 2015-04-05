@@ -58,6 +58,7 @@ void kmem_early_init(multiboot_info* multiboot)
         {
             if (mod_entry->mod_end > min_alloc)
                 min_alloc = mod_entry->mod_end;
+            mod_entry++;
         }
     }
     
