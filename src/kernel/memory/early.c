@@ -27,7 +27,7 @@ void* kmalloc_early(size_t size, size_t align, uint32* physical_address)
     r = next_alloc;
     if ((r & align_mask) != 0x0)
     {
-        r |= ~r & align_mask;
+        r |= align_mask;
         r += 1;
     }
     

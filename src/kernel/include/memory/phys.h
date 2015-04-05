@@ -45,7 +45,7 @@ void kmem_phys_init(multiboot_info* info);
 
 uint64 kmem_block_address(mem_block* block);
 mem_block* kmem_block_find(uint64 address);
-uint32 kmem_block_find_range(mem_block** out, uint64 start, uint64 end);
+mem_block* kmem_block_next(mem_block* prev);
 
 mem_block* kmem_block_alloc(bool kernel);
 void kmem_block_free(mem_block* block);

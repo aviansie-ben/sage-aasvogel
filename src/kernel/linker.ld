@@ -22,6 +22,14 @@ SECTIONS
         
         . = ALIGN(0x1000);
         *(.setup_pagedir)
+        
+        /* Once memory manager initialization is done, this area will be
+           reclaimed for use for some operations requiring physical addresses
+           less than 16MiB. We need at least 128KiB of memory reserved for this
+           purpose. */
+        . = MAX(_ld_setup_begin + 0x20000, .);
+        . = ALIGN(0x1000);
+        
         _ld_setup_end = .;
     }
     

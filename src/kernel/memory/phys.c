@@ -9,6 +9,8 @@
 static mem_region* low_region = NULL;
 static mem_region* high_region = NULL;
 
+extern const void _ld_kernel_end;
+
 static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uint32 block_flags)
 {
     mem_region* region = kmalloc_early(sizeof(mem_region), __alignof__(mem_region), NULL);
@@ -37,6 +39,23 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     }
     
     return region;
+}
+
+static void kmem_reserve_kernel(void)
+{
+    mem_block* pb;
+    mem_block* b;
+    
+    for (pb = NULL, b = high_region->block_info; kmem_block_address(b) < (uint32)&_ld_kernel_end; pb = b, b = kmem_block_next(b))
+    {
+        if (pb != NULL && b->region != pb->region)
+            pb->region->first_free = 0xffff;
+        
+        b->flags = MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_LOCKED;
+        b->ref_count = 1;
+    }
+    
+    b->region->first_free = (uint16)(b - b->region->block_info);
 }
 
 void kmem_phys_init(multiboot_info* info)
@@ -71,6 +90,8 @@ void kmem_phys_init(multiboot_info* info)
     }
     
     low_region->next = high_region;
+    
+    kmem_reserve_kernel();
 }
 
 uint64 kmem_block_address(mem_block* block)
@@ -95,6 +116,16 @@ mem_block* kmem_block_find(uint64 address)
     }
     
     return NULL;
+}
+
+mem_block* kmem_block_next(mem_block* prev)
+{
+    if (prev < (prev->region->block_info + prev->region->num_blocks))
+        return (prev + 1);
+    else if (prev->region->next != NULL)
+        return prev->region->next->block_info;
+    else
+        return NULL;
 }
 
 mem_block* kmem_block_alloc(bool kernel)
