@@ -41,7 +41,7 @@ typedef struct mem_block
     uint32 owner_pid;
 } mem_block;
 
-void kmem_phys_init(multiboot_info* info);
+void kmem_phys_init(multiboot_info* multiboot);
 
 uint64 kmem_block_address(mem_block* block);
 mem_block* kmem_block_find(uint64 address);
@@ -49,5 +49,7 @@ mem_block* kmem_block_next(mem_block* prev);
 
 mem_block* kmem_block_alloc(bool kernel);
 void kmem_block_free(mem_block* block);
+
+void kmem_block_reserve(mem_block* start, mem_block* end, uint32 flags);
 
 #endif

@@ -41,24 +41,27 @@ static mem_region* create_region(uint64 physical_address, uint16 num_blocks, uin
     return region;
 }
 
-static void kmem_reserve_kernel(void)
+static void kmem_reserve_kernel(multiboot_info* multiboot)
 {
-    mem_block* pb;
-    mem_block* b;
+    multiboot_module_entry* mod_entry;
+    multiboot_module_entry* mod_end;
     
-    for (pb = NULL, b = high_region->block_info; kmem_block_address(b) < (uint32)&_ld_kernel_end; pb = b, b = kmem_block_next(b))
+    kmem_block_reserve(high_region->block_info, kmem_block_find((uint32) &_ld_kernel_end - 1), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_LOCKED);
+    
+    if (multiboot->flags & MB_FLAG_MODULES)
     {
-        if (pb != NULL && b->region != pb->region)
-            pb->region->first_free = 0xffff;
+        mod_entry = (multiboot_module_entry*) (multiboot->mods_addr + 0xC0000000);
+        mod_end = mod_entry + multiboot->mods_count;
         
-        b->flags = MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_LOCKED;
-        b->ref_count = 1;
+        while (mod_entry < mod_end)
+        {
+            kmem_block_reserve(kmem_block_find((uint32) mod_entry->mod_start), kmem_block_find((uint32) mod_entry->mod_end - 1), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_LOCKED);
+            mod_entry++;
+        }
     }
-    
-    b->region->first_free = (uint16)(b - b->region->block_info);
 }
 
-void kmem_phys_init(multiboot_info* info)
+void kmem_phys_init(multiboot_info* multiboot)
 {
     mem_region* prev_region = NULL;
     mem_region* next_region = NULL;
@@ -67,13 +70,13 @@ void kmem_phys_init(multiboot_info* info)
     
     assert(low_region == NULL && high_region == NULL);
     
-    if ((info->flags & (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP)) != (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP))
+    if ((multiboot->flags & (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP)) != (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP))
         crash("Bootloader did not provide memory information!");
     
-    low_region = create_region(0x00000000, (uint16)(info->mem_lower >> 2), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
+    low_region = create_region(0x00000000, (uint16)(multiboot->mem_lower >> 2), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
     
-    high_blocks_left = info->mem_upper >> 2;
-    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", info->mem_upper);
+    high_blocks_left = multiboot->mem_upper >> 2;
+    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", multiboot->mem_upper);
     
     while (high_blocks_left > 0)
     {
@@ -91,7 +94,7 @@ void kmem_phys_init(multiboot_info* info)
     
     low_region->next = high_region;
     
-    kmem_reserve_kernel();
+    kmem_reserve_kernel(multiboot);
 }
 
 uint64 kmem_block_address(mem_block* block)
@@ -190,4 +193,35 @@ void kmem_block_free(mem_block* block)
     }
     
     spinlock_release(&r->lock);
+}
+
+void kmem_block_reserve(mem_block* start, mem_block* end, uint32 flags)
+{
+    mem_block* pb;
+    mem_block* b;
+    
+    if (kmem_block_address(start) > kmem_block_address(end))
+        return;
+    
+    for (pb = NULL, b = start; pb != end; pb = b, b = kmem_block_next(b))
+    {
+        if (pb == NULL || b->region != pb->region)
+        {
+            if (pb != NULL)
+            {
+                pb->region->first_free = 0xffff;
+                spinlock_release(&pb->region->lock);
+            }
+            
+            spinlock_acquire(&b->region->lock);
+        }
+        
+        assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
+        b->flags = flags & ~MEM_BLOCK_FREE;
+        b->ref_count = 1;
+        b->owner_pid = 0;
+    }
+    
+    pb->region->first_free = pb->next_free;
+    spinlock_release(&pb->region->lock);
 }
