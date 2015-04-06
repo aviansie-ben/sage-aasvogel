@@ -67,7 +67,7 @@ do
 done
 
 echo "  Running linker..."
-if ! $linker -o $output_directory/kernel.bin $(find $objdir -name '*.o') $linker_suffix
+if ! $linker -o $output_directory/kernel.bin $(find $object_directory -name '*.o') $linker_suffix
 then
     exit 1
 fi
