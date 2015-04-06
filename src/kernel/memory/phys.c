@@ -217,7 +217,7 @@ void kmem_block_reserve(mem_block* start, mem_block* end, uint32 flags)
         }
         
         assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
-        b->flags = flags & ~MEM_BLOCK_FREE;
+        b->flags = flags & (uint32)~MEM_BLOCK_FREE;
         b->ref_count = 1;
         b->owner_pid = 0;
     }
