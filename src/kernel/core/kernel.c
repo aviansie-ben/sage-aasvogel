@@ -12,6 +12,7 @@
 
 #include <memory/early.h>
 #include <memory/phys.h>
+#include <memory/page.h>
 
 void kernel_main(multiboot_info* mb_info);
 
@@ -34,6 +35,7 @@ void kernel_main(multiboot_info* mb_info)
     
     kmem_early_init(mb_info);
     kmem_phys_init(mb_info);
+    kmem_page_init(mb_info);
     
     hang();
 }
