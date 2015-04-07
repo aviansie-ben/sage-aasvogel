@@ -4,6 +4,18 @@
 #include <memory/page.h>
 #include <assert.h>
 
+extern const void _ld_text_begin;
+extern const void _ld_text_end;
+
+extern const void _ld_rodata_begin;
+extern const void _ld_rodata_end;
+
+extern const void _ld_data_begin;
+extern const void _ld_data_end;
+
+extern const void _ld_bss_begin;
+extern const void _ld_bss_end;
+
 page_context kernel_page_context;
 page_context* active_page_context;
 
@@ -11,12 +23,18 @@ static bool init_done = false;
 static bool use_pae = false;
 static bool use_pge = false;
 
+static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, mem_block* block);
+
 static void kmem_page_init_pae(multiboot_info* multiboot)
 {
     page_dir_ptr_tab* pdpt;
     page_dir_pae* pd;
     uint32 phys;
     uint32 i;
+    uint32 addr;
+    
+    multiboot_module_entry* mod_entry;
+    multiboot_module_entry* mod_end;
     
     spinlock_init(&kernel_page_context.lock);
     
@@ -28,9 +46,44 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
         pdpt->page_table_virt[i] = NULL;
     
     pd = pdpt->page_dir_virt[3] = kmalloc_early(sizeof(page_dir_pae), __alignof__(page_dir_pae), &phys);
-    pdpt->page_dir_phys[3] = phys;
+    pdpt->page_dir_phys[3] = phys | PDPT_ENTRY_PRESENT;
     for (i = 0; i < (sizeof(pd->page_table_phys) / sizeof(*pd->page_table_phys)); i++)
         pd->page_table_phys[i] = 0;
+    
+    // Map the lower 1MiB of memory directly
+    for (addr = 0x0; addr < multiboot->mem_lower; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr));
+    
+    // Map the kernel's text segment
+    for (addr = (uint32)&_ld_text_begin & ~0xfffu; addr < (uint32)&_ld_text_end; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
+    
+    // Map the kernel's rodata segment
+    for (addr = (uint32)&_ld_rodata_begin & ~0xfffu; addr < (uint32)&_ld_rodata_end; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
+    
+    // Map the kernel's data segment
+    for (addr = (uint32)&_ld_data_begin & ~0xfffu; addr < (uint32)&_ld_data_end; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
+    
+    // Map the kernel's bss segment
+    for (addr = (uint32)&_ld_bss_begin & ~0xfffu; addr < (uint32)&_ld_bss_end; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
+    
+    // Map any modules loaded by the bootloader
+    if (multiboot->flags & MB_FLAG_MODULES)
+    {
+        mod_entry = (multiboot_module_entry*) (multiboot->mods_addr + 0xC0000000);
+        mod_end = mod_entry + multiboot->mods_count;
+        
+        while (mod_entry < mod_end)
+        {
+            for (addr = mod_entry->mod_start & ~0xfffu; addr < mod_entry->mod_end; addr += 0x1000)
+                kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL, kmem_block_find(addr));
+            
+            mod_entry++;
+        }
+    }
 }
 
 static void kmem_page_init_legacy(multiboot_info* multiboot)
@@ -61,11 +114,13 @@ void kmem_page_init(multiboot_info* multiboot)
     else
         kmem_page_init_legacy(multiboot);
     
-    // TODO: Make mappings on the new page context
+    // Finalize the early memory manager. Any space it has allocated will be
+    // reserved in physical memory and mapped into the new page context.
+    kmem_early_finalize();
     
     // Now that we're done setting up the new page context, we can switch into
     // it.
-    // kmem_page_context_switch(&kernel_page_context);
+    kmem_page_context_switch(&kernel_page_context);
 }
 
 void kmem_page_context_switch(page_context* c)
@@ -118,6 +173,9 @@ static page_table_pae* kmem_page_table_create_pae(page_context* c, uint32 table_
     uint32 phys;
     uint32 i;
     
+    // TODO: Implement XD/NX bit
+    flags &= ~PD_ENTRY_NO_EXECUTE;
+    
     pdo = (table_number & 0x600) >> 9;
     pto = table_number & 0x1ff;
     
@@ -147,6 +205,13 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
 {
     page_table_pae* pt;
     uint32 pto, po;
+    
+    // TODO: Implement XD/NX bit
+    flags &= ~PT_ENTRY_NO_EXECUTE;
+    
+    assert(c != NULL);
+    assert(block != NULL);
+    assert((flags & PAGE_PHYSICAL_ADDRESS_MASK_64) == 0);
     
     pto = (virtual_address & 0xffe00000) >> 21;
     po = (virtual_address & 0x001ff000) >> 12;
@@ -182,6 +247,8 @@ static void kmem_page_unmap_pae(page_context* c, uint32 virtual_address)
 {
     page_table_pae* pt;
     uint32 pto, po;
+    
+    assert(c != NULL);
     
     pto = (virtual_address & 0xffe00000) >> 21;
     po = (virtual_address & 0x001ff000) >> 12;
