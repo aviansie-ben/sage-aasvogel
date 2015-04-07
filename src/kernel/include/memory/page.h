@@ -5,7 +5,9 @@
 #include <lock.h>
 #include <memory/phys.h>
 
-#define KERNEL_VIRTUAL_ADDRESS_BEGIN 0xC0000000
+#define KERNEL_VIRTUAL_ADDRESS_BEGIN  0xC0000000u
+#define PAGE_PHYSICAL_ADDRESS_MASK_64 0x7FFFFFFFFFFFF000u
+#define PAGE_PHYSICAL_ADDRESS_MASK_32 0xFFFFF000u
 
 enum pdpt_entry_flags
 {
@@ -25,7 +27,10 @@ enum pd_entry_flags
     PD_ENTRY_DIRTY         = (1 << 6),
     PD_ENTRY_LARGE_PAGE    = (1 << 7),
     PD_ENTRY_GLOBAL        = (1 << 8),
-    PD_ENTRY_NO_EXECUTE    = (1ull << 63)
+    PD_ENTRY_NO_EXECUTE    = (1ull << 63),
+    
+    PD_ENTRY_DEF_KERNEL    = PD_ENTRY_WRITEABLE,
+    PD_ENTRY_DEF_USER      = PD_ENTRY_WRITEABLE | PD_ENTRY_USER
 };
 
 enum pt_entry_flags
