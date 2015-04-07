@@ -62,6 +62,12 @@ void kmem_early_init(multiboot_info* multiboot)
         }
     }
     
+    if ((min_alloc & 0xfff) != 0)
+    {
+        min_alloc |= 0xfff;
+        min_alloc += 1;
+    }
+    
     next_alloc = min_alloc;
     init_done = true;
 }
