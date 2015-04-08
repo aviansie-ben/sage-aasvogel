@@ -1,4 +1,5 @@
 #include <core/cpuid.h>
+#include <core/msr.h>
 #include <memory/early.h>
 #include <memory/phys.h>
 #include <memory/page.h>
@@ -22,6 +23,7 @@ page_context* active_page_context;
 static bool init_done = false;
 static bool use_pae = false;
 static bool use_pge = false;
+static bool use_nx = false;
 
 static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, mem_block* block);
 
@@ -35,6 +37,11 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     
     multiboot_module_entry* mod_entry;
     multiboot_module_entry* mod_end;
+    
+    // If the CPU supports the NX bit, we should enable it now
+    use_nx = msr_is_supported() && cpuid_supports_feature_ext_edx(CPUID_FEATURE_EXT_EDX_NX);
+    if (use_nx)
+        msr_write(MSR_EFER, msr_read(MSR_EFER) | MSR_EFER_FLAG_NX);
     
     spinlock_init(&kernel_page_context.lock);
     
@@ -173,8 +180,8 @@ static page_table_pae* kmem_page_table_create_pae(page_context* c, uint32 table_
     uint32 phys;
     uint32 i;
     
-    // TODO: Implement XD/NX bit
-    flags &= ~PD_ENTRY_NO_EXECUTE;
+    if (!use_nx)
+        flags &= ~PD_ENTRY_NO_EXECUTE;
     
     pdo = (table_number & 0x600) >> 9;
     pto = table_number & 0x1ff;
@@ -206,8 +213,8 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
     page_table_pae* pt;
     uint32 pto, po;
     
-    // TODO: Implement XD/NX bit
-    flags &= ~PT_ENTRY_NO_EXECUTE;
+    if (!use_nx)
+        flags &= ~PT_ENTRY_NO_EXECUTE;
     
     assert(c != NULL);
     assert(block != NULL);
