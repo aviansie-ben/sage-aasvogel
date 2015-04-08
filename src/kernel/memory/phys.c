@@ -73,7 +73,7 @@ void kmem_phys_init(multiboot_info* multiboot)
     if ((multiboot->flags & (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP)) != (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP))
         crash("Bootloader did not provide memory information!");
     
-    low_region = create_region(0x00000000, (uint16)(multiboot->mem_lower >> 2), MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
+    low_region = create_region(0x00000000, 0x100, MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
     
     high_blocks_left = multiboot->mem_upper >> 2;
     tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", multiboot->mem_upper);

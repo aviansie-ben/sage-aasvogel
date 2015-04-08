@@ -58,7 +58,7 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
         pd->page_table_phys[i] = 0;
     
     // Map the lower 1MiB of memory directly
-    for (addr = 0x0; addr < multiboot->mem_lower; addr += 0x1000)
+    for (addr = 0x0; addr < 0x100000; addr += 0x1000)
         kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr));
     
     // Map the kernel's text segment
