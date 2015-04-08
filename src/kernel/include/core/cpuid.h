@@ -84,6 +84,22 @@ typedef enum
     CPUID_FEATURE_ECX_HV        = (1 << 31)
 } cpuid_feature_ecx;
 
+typedef enum
+{
+    CPUID_FEATURE_EXT_ECX_LAHF      = (1 << 0),
+    CPUID_FEATURE_EXT_ECX_LZCNT     = (1 << 5),
+    CPUID_FEATURE_EXT_ECX_PREFETCHW = (1 << 8),
+} cpuid_feature_ext_ecx;
+
+typedef enum
+{
+    CPUID_FEATURE_EXT_EDX_SYSCALL   = (1 << 11),
+    CPUID_FEATURE_EXT_EDX_NX        = (1 << 20),
+    CPUID_FEATURE_EXT_EDX_GB_PAGE   = (1 << 26),
+    CPUID_FEATURE_EXT_EDX_RDTSCP    = (1 << 27),
+    CPUID_FEATURE_EXT_EDX_LONG_MODE = (1 << 29)
+} cpuid_feature_ext_edx;
+
 extern const cpuid_vendor* cpuid_detected_vendor;
 extern uint8 cpuid_max_eax;
 
@@ -95,5 +111,7 @@ extern void cpuid_init(void);
 
 extern bool cpuid_supports_feature_edx(cpuid_feature_edx f);
 extern bool cpuid_supports_feature_ecx(cpuid_feature_ecx f);
+extern bool cpuid_supports_feature_ext_edx(cpuid_feature_ext_edx f);
+extern bool cpuid_supports_feature_ext_ecx(cpuid_feature_ext_ecx f);
 
 #endif

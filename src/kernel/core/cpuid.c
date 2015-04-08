@@ -52,6 +52,7 @@ static const cpuid_vendor known_vendors[] = {
 
 const cpuid_vendor* cpuid_detected_vendor;
 uint8 cpuid_max_eax;
+uint32 cpuid_max_ext_eax;
 
 uint8 cpuid_processor_type;
 uint16 cpuid_family_id;
@@ -59,6 +60,9 @@ uint8 cpuid_model_id;
 
 static uint32 cpuid_features_edx;
 static uint32 cpuid_features_ecx;
+
+static uint32 cpuid_features_ext_edx;
+static uint32 cpuid_features_ext_ecx;
 
 void cpuid_init(void)
 {
@@ -90,6 +94,15 @@ void cpuid_init(void)
     cpuid_processor_type = eax_info.info.processor_type;
     cpuid_family_id = (eax_info.info.family == 0xF) ? (uint16)(0xF + eax_info.info.ext_family) : eax_info.info.family;
     cpuid_model_id = (eax_info.info.family == 0x6 || eax_info.info.family == 0xF) ? (uint8)(eax_info.info.model + (eax_info.info.ext_model << 4)) : eax_info.info.model;
+    
+    // Run CPUID with EAX=0x80000000 to detect support for extended CPUID functions
+    asm volatile ("cpuid" : "=a" (cpuid_max_ext_eax) : "a" (0x80000000) : "ebx", "ecx", "edx");
+    
+    // If extended CPUID functions are available, use them to get extra feature information
+    if (cpuid_max_ext_eax >= 0x80000001u)
+    {
+        asm volatile ("cpuid" : "=c" (cpuid_features_ext_ecx), "=d" (cpuid_features_ext_edx) : "a" (0x80000001) : "ebx");
+    }
 }
 
 bool cpuid_supports_feature_edx(cpuid_feature_edx f)
@@ -100,4 +113,14 @@ bool cpuid_supports_feature_edx(cpuid_feature_edx f)
 bool cpuid_supports_feature_ecx(cpuid_feature_ecx f)
 {
     return (cpuid_features_ecx & (uint32)f) == (uint32)f;
+}
+
+bool cpuid_supports_feature_ext_edx(cpuid_feature_ext_edx f)
+{
+    return (cpuid_features_ext_edx & (uint32)f) == (uint32)f;
+}
+
+bool cpuid_supports_feature_ext_ecx(cpuid_feature_ext_ecx f)
+{
+    return (cpuid_features_ext_ecx & (uint32)f) == (uint32)f;
 }
