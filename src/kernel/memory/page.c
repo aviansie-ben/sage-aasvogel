@@ -315,3 +315,19 @@ void kmem_page_flush_all(void)
         asm volatile ("mov %0, %%cr3" : : "r" (cr));
     }
 }
+
+void kmem_enable_write_protect(void)
+{
+    uint32 cr0;
+    
+    asm volatile ("mov %%cr0, %0" : "=r" (cr0));
+    asm volatile ("mov %0, %%cr0" : : "r" (cr0 | 0x10000));
+}
+
+void kmem_disable_write_protect(void)
+{
+    uint32 cr0;
+    
+    asm volatile ("mov %%cr0, %0" : "=r" (cr0));
+    asm volatile ("mov %0, %%cr0" : : "r" (cr0 & ~0x10000u));
+}
