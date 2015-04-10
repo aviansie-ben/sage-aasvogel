@@ -80,10 +80,10 @@ void kmem_phys_init(multiboot_info* multiboot)
     tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", multiboot->mem_upper);
     
     // If PAE is disabled, memory above 4GiB must be ignored.
-    asm volatile ("mov %%cr4, %0" : "=r" (cr0));
+    asm volatile ("mov %%cr4, %0" : "=r" (cr4));
     if ((cr4 & (1 << 5)) == 0 && high_blocks_left > 0xFFF00)
     {
-        tprintf("Memory above 4GiB is being ignored because PAE is disabled...\n");
+        tprintf(&tty_virtual_consoles[0].base, "Memory above 4GiB is being ignored because PAE is disabled...\n");
         high_blocks_left = 0xFFF00;
     }
     
