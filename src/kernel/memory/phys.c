@@ -67,6 +67,7 @@ void kmem_phys_init(multiboot_info* multiboot)
     mem_region* next_region = NULL;
     uint64 high_blocks_left;
     uint64 i = 0;
+    uint32 cr4;
     
     assert(low_region == NULL && high_region == NULL);
     
@@ -77,6 +78,14 @@ void kmem_phys_init(multiboot_info* multiboot)
     
     high_blocks_left = multiboot->mem_upper >> 2;
     tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", multiboot->mem_upper);
+    
+    // If PAE is disabled, memory above 4GiB must be ignored.
+    asm volatile ("mov %%cr4, %0" : "=r" (cr0));
+    if ((cr4 & (1 << 5)) == 0 && high_blocks_left > 0xFFF00)
+    {
+        tprintf("Memory above 4GiB is being ignored because PAE is disabled...\n");
+        high_blocks_left = 0xFFF00;
+    }
     
     while (high_blocks_left > 0)
     {
