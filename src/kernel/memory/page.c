@@ -25,7 +25,21 @@ static bool use_pae = false;
 static bool use_pge = false;
 static bool use_nx = false;
 
-static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, mem_block* block);
+static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, uint64 physical_address);
+
+static void kmem_page_init_map_many_pae(uint32 start, uint32 end, bool virt, uint64 flags)
+{
+    uint32 addr;
+    
+    if (virt)
+    {
+        start -= KERNEL_VIRTUAL_ADDRESS_BEGIN;
+        end -= KERNEL_VIRTUAL_ADDRESS_BEGIN;
+    }
+    
+    for (addr = start & ~0xfffu; addr < end; addr += 0x1000)
+        kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, flags, addr);
+}
 
 static void kmem_page_init_pae(multiboot_info* multiboot)
 {
@@ -33,7 +47,6 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     page_dir_pae* pd;
     uint32 phys;
     uint32 i;
-    uint32 addr;
     
     multiboot_module_entry* mod_entry;
     multiboot_module_entry* mod_end;
@@ -49,33 +62,24 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     kernel_page_context.physical_address = phys;
     pdpt->page_dir_phys[0] = pdpt->page_dir_phys[1] = pdpt->page_dir_phys[2] = 0;
     pdpt->page_dir_virt[0] = pdpt->page_dir_virt[1] = pdpt->page_dir_virt[2] = NULL;
+    
     for (i = 0; i < (sizeof(pdpt->page_table_virt) / sizeof(*pdpt->page_table_virt)); i++)
         pdpt->page_table_virt[i] = NULL;
     
     pd = pdpt->page_dir_virt[3] = kmalloc_early(sizeof(page_dir_pae), __alignof__(page_dir_pae), &phys);
     pdpt->page_dir_phys[3] = phys | PDPT_ENTRY_PRESENT;
+    
     for (i = 0; i < (sizeof(pd->page_table_phys) / sizeof(*pd->page_table_phys)); i++)
         pd->page_table_phys[i] = 0;
     
     // Map the lower 1MiB of memory directly
-    for (addr = 0x0; addr < 0x100000; addr += 0x1000)
-        kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr));
+    kmem_page_init_map_many_pae(0x0, 0x100000, false, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
     
-    // Map the kernel's text segment
-    for (addr = (uint32)&_ld_text_begin & ~0xfffu; addr < (uint32)&_ld_text_end; addr += 0x1000)
-        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
-    
-    // Map the kernel's rodata segment
-    for (addr = (uint32)&_ld_rodata_begin & ~0xfffu; addr < (uint32)&_ld_rodata_end; addr += 0x1000)
-        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
-    
-    // Map the kernel's data segment
-    for (addr = (uint32)&_ld_data_begin & ~0xfffu; addr < (uint32)&_ld_data_end; addr += 0x1000)
-        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
-    
-    // Map the kernel's bss segment
-    for (addr = (uint32)&_ld_bss_begin & ~0xfffu; addr < (uint32)&_ld_bss_end; addr += 0x1000)
-        kmem_page_map_pae(&kernel_page_context, addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, kmem_block_find(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN));
+    // Map the kernel's segments
+    kmem_page_init_map_many_pae((uint32)&_ld_text_begin, (uint32)&_ld_text_end, true, PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_pae((uint32)&_ld_rodata_begin, (uint32)&_ld_rodata_end, true, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_pae((uint32)&_ld_data_begin, (uint32)&_ld_data_end, true, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_pae((uint32)&_ld_bss_begin, (uint32)&_ld_bss_end, true, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
     
     // Map any modules loaded by the bootloader
     if (multiboot->flags & MB_FLAG_MODULES)
@@ -85,9 +89,7 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
         
         while (mod_entry < mod_end)
         {
-            for (addr = mod_entry->mod_start & ~0xfffu; addr < mod_entry->mod_end; addr += 0x1000)
-                kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL, kmem_block_find(addr));
-            
+            kmem_page_init_map_many_pae(mod_entry->mod_start, mod_entry->mod_end, false, PT_ENTRY_NO_EXECUTE | PT_ENTRY_GLOBAL);
             mod_entry++;
         }
     }
@@ -208,7 +210,7 @@ static page_table_pae* kmem_page_table_create_pae(page_context* c, uint32 table_
     return pt;
 }
 
-static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, mem_block* block)
+static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, uint64 physical_address)
 {
     page_table_pae* pt;
     uint32 pto, po;
@@ -217,7 +219,7 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
         flags &= ~PT_ENTRY_NO_EXECUTE;
     
     assert(c != NULL);
-    assert(block != NULL);
+    assert((physical_address & PAGE_PHYSICAL_ADDRESS_MASK_64) == physical_address);
     assert((flags & PAGE_PHYSICAL_ADDRESS_MASK_64) == 0);
     
     pto = (virtual_address & 0xffe00000) >> 21;
@@ -227,22 +229,25 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
     if (pt == NULL)
         pt = kmem_page_table_create_pae(c, pto, (virtual_address >= KERNEL_VIRTUAL_ADDRESS_BEGIN) ? PD_ENTRY_DEF_KERNEL : PD_ENTRY_DEF_USER);
     
-    pt->page_phys[po] = kmem_block_address(block) | flags | PT_ENTRY_PRESENT;
+    pt->page_phys[po] = physical_address | flags | PT_ENTRY_PRESENT;
 }
 
-static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32 flags, mem_block* block)
+static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32 flags, uint32 physical_address)
 {
     crash("Legacy paging support not implemented yet!");
 }
 
 void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
 {
+    assert(c != NULL);
+    assert(block != NULL);
+    
     spinlock_acquire(&c->lock);
     
     if (use_pae)
-        kmem_page_map_pae(c, virtual_address, flags, block);
+        kmem_page_map_pae(c, virtual_address, flags, kmem_block_address(block));
     else
-        kmem_page_map_legacy(c, virtual_address, (uint32)flags, block);
+        kmem_page_map_legacy(c, virtual_address, (uint32)flags, (uint32)kmem_block_address(block));
     
     if (flush)
         kmem_page_flush_one(virtual_address);
