@@ -61,7 +61,7 @@ static void kmem_reserve_kernel(multiboot_info* multiboot)
     }
 }
 
-void kmem_phys_init(multiboot_info* multiboot)
+void kmem_phys_init(const boot_param* param)
 {
     mem_region* prev_region = NULL;
     mem_region* next_region = NULL;
@@ -71,13 +71,13 @@ void kmem_phys_init(multiboot_info* multiboot)
     
     assert(low_region == NULL && high_region == NULL);
     
-    if ((multiboot->flags & (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP)) != (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP))
+    if ((param->multiboot->flags & (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP)) != (MB_FLAG_MEMORY | MB_FLAG_MEM_MAP))
         crash("Bootloader did not provide memory information!");
     
     low_region = create_region(0x00000000, 0x100, MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
     
-    high_blocks_left = multiboot->mem_upper >> 2;
-    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", multiboot->mem_upper);
+    high_blocks_left = param->multiboot->mem_upper >> 2;
+    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", param->multiboot->mem_upper);
     
     // If PAE is disabled, memory above 4GiB must be ignored.
     asm volatile ("mov %%cr4, %0" : "=r" (cr4));
@@ -103,7 +103,7 @@ void kmem_phys_init(multiboot_info* multiboot)
     
     low_region->next = high_region;
     
-    kmem_reserve_kernel(multiboot);
+    kmem_reserve_kernel(param->multiboot);
 }
 
 uint64 kmem_block_address(mem_block* block)

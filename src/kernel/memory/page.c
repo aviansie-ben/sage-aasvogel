@@ -41,7 +41,7 @@ static void kmem_page_init_map_many_pae(uint32 start, uint32 end, bool virt, uin
         kmem_page_map_pae(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, flags, addr);
 }
 
-static void kmem_page_init_pae(multiboot_info* multiboot)
+static void kmem_page_init_pae(const boot_param* param)
 {
     page_dir_ptr_tab* pdpt;
     page_dir_pae* pd;
@@ -52,7 +52,7 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     multiboot_module_entry* mod_end;
     
     // If the CPU supports the NX bit, we should enable it now
-    use_nx = msr_is_supported() && cpuid_supports_feature_ext_edx(CPUID_FEATURE_EXT_EDX_NX);
+    use_nx = !cmdline_get_bool(param, "no_nx") && msr_is_supported() && cpuid_supports_feature_ext_edx(CPUID_FEATURE_EXT_EDX_NX);
     if (use_nx)
         msr_write(MSR_EFER, msr_read(MSR_EFER) | MSR_EFER_FLAG_NX);
     
@@ -82,10 +82,10 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     kmem_page_init_map_many_pae((uint32)&_ld_bss_begin, (uint32)&_ld_bss_end, true, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
     
     // Map any modules loaded by the bootloader
-    if (multiboot->flags & MB_FLAG_MODULES)
+    if (param->multiboot->flags & MB_FLAG_MODULES)
     {
-        mod_entry = (multiboot_module_entry*) (multiboot->mods_addr + 0xC0000000);
-        mod_end = mod_entry + multiboot->mods_count;
+        mod_entry = (multiboot_module_entry*) (param->multiboot->mods_addr + 0xC0000000);
+        mod_end = mod_entry + param->multiboot->mods_count;
         
         while (mod_entry < mod_end)
         {
@@ -95,12 +95,12 @@ static void kmem_page_init_pae(multiboot_info* multiboot)
     }
 }
 
-static void kmem_page_init_legacy(multiboot_info* multiboot)
+static void kmem_page_init_legacy(const boot_param* param)
 {
     crash("Legacy paging support not implemented yet!");
 }
 
-void kmem_page_init(multiboot_info* multiboot)
+void kmem_page_init(const boot_param* param)
 {
     uint32 cr4;
     
@@ -119,9 +119,9 @@ void kmem_page_init(multiboot_info* multiboot)
     }
     
     if (use_pae)
-        kmem_page_init_pae(multiboot);
+        kmem_page_init_pae(param);
     else
-        kmem_page_init_legacy(multiboot);
+        kmem_page_init_legacy(param);
     
     // Finalize the early memory manager. Any space it has allocated will be
     // reserved in physical memory and mapped into the new page context.

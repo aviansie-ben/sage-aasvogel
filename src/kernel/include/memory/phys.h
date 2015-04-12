@@ -3,7 +3,7 @@
 
 #include <typedef.h>
 #include <lock.h>
-#include <multiboot.h>
+#include <core/bootparam.h>
 
 typedef enum
 {
@@ -41,7 +41,7 @@ typedef struct mem_block
     uint32 owner_pid;
 } mem_block;
 
-void kmem_phys_init(multiboot_info* multiboot);
+void kmem_phys_init(const boot_param* param);
 
 uint64 kmem_block_address(mem_block* block);
 mem_block* kmem_block_find(uint64 address);

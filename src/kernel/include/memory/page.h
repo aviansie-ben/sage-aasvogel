@@ -104,7 +104,7 @@ typedef struct page_table_legacy
 extern page_context kernel_page_context;
 extern page_context* active_page_context;
 
-void kmem_page_init(multiboot_info* multiboot);
+void kmem_page_init(const boot_param* param);
 
 void kmem_page_context_create(page_context* c);
 void kmem_page_context_destroy(page_context* c);
