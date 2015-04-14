@@ -45,7 +45,7 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
     spinlock_release(&tty_virtual_consoles[0].base.lock);
     
     tprintf(&tty_virtual_consoles[0].base, "Sage Aasvogel has crashed!\n  %s\n  Location: %s line %d\n  Function: %s\n\nStack Trace:\n", msg, file, line, func);
-    unchecked_unwind_here(1, crash_print_stackframe);
+    unchecked_unwind_here(1, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
     hang();
 }
@@ -64,7 +64,7 @@ void do_crash_unhandled_isr(regs32_t* r)
     spinlock_release(&tty_virtual_consoles[0].base.lock);
     
     tprintf(&tty_virtual_consoles[0].base, "Sage Aasvogel has crashed!\n  Unexpected ISR: 0x%x\n\nStack Trace:\n", r->int_no);
-    unchecked_unwind(r->eip, (void*) r->ebp, crash_print_stackframe);
+    unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
     hang();
 }
