@@ -5,22 +5,30 @@
 #include <string.h>
 #include <core/unwind.h>
 
+#include <core/ksym.h>
+
 static void lookup_name(unsigned int address, char* out)
 {
     char tmp[9];
     
-    if (address >= 0xC0000000)
+    const char* symbol_name;
+    uint32 symbol_offset;
+    
+    if (ksym_address_lookup(address, &symbol_name, &symbol_offset))
     {
-        strcpy(out, "kernel+0x");
-        address -= 0xC0000000;
+        itoa((int) symbol_offset, tmp, 16);
+        
+        strcpy(out, symbol_name);
+        strcat(out, "+0x");
+        strcat(out, tmp);
     }
     else
     {
-        strcpy(out, "boot+0x");
+        itoa((int) address, tmp, 16);
+        
+        strcpy(out, "0x");
+        strcat(out, tmp);
     }
-    
-    itoa((int) address, tmp, 16);
-    strcat(out, tmp);
 }
 
 static void crash_print_stackframe(unsigned int eip, void* esp)
