@@ -26,6 +26,7 @@ static bool use_pge = false;
 static bool use_nx = false;
 
 static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, uint64 physical_address);
+static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32 flags, uint32 physical_address);
 
 static void kmem_page_init_map_many_pae(uint32 start, uint32 end, bool virt, uint64 flags)
 {
@@ -95,9 +96,59 @@ static void kmem_page_init_pae(const boot_param* param)
     }
 }
 
+static void kmem_page_init_map_many_legacy(uint32 start, uint32 end, bool virt, uint32 flags)
+{
+    uint32 addr;
+    
+    if (virt)
+    {
+        start -= KERNEL_VIRTUAL_ADDRESS_BEGIN;
+        end -= KERNEL_VIRTUAL_ADDRESS_BEGIN;
+    }
+    
+    for (addr = start & ~0xfffu; addr < end; addr += 0x1000)
+        kmem_page_map_legacy(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, flags, addr);
+}
+
 static void kmem_page_init_legacy(const boot_param* param)
 {
-    crash("Legacy paging support not implemented yet!");
+    page_dir_legacy* pd;
+    uint32 phys;
+    uint32 i;
+    
+    multiboot_module_entry* mod_entry;
+    multiboot_module_entry* mod_end;
+    
+    pd = kernel_page_context.legacy_dir = kmalloc_early(sizeof(page_dir_legacy), __alignof__(page_dir_legacy), &phys);
+    kernel_page_context.physical_address = phys;
+    
+    for (i = 0; i < (sizeof(pd->page_table_virt) / sizeof(*pd->page_table_virt)); i++)
+    {
+        pd->page_table_virt[i] = NULL;
+        pd->page_table_phys[i] = 0;
+    }
+    
+    // Map the lower 1MiB of memory directly
+    kmem_page_init_map_many_legacy(0x0, 0x100000, false, PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
+    
+    // Map the kernel's segments
+    kmem_page_init_map_many_legacy((uint32)&_ld_text_begin, (uint32)&_ld_text_end, true, PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_legacy((uint32)&_ld_rodata_begin, (uint32)&_ld_rodata_end, true, PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_legacy((uint32)&_ld_data_begin, (uint32)&_ld_data_end, true, PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
+    kmem_page_init_map_many_legacy((uint32)&_ld_bss_begin, (uint32)&_ld_bss_end, true, PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
+    
+    // Map any modules loaded by the bootloader
+    if (param->multiboot->flags & MB_FLAG_MODULES)
+    {
+        mod_entry = (multiboot_module_entry*) (param->multiboot->mods_addr + 0xC0000000);
+        mod_end = mod_entry + param->multiboot->mods_count;
+        
+        while (mod_entry < mod_end)
+        {
+            kmem_page_init_map_many_legacy(mod_entry->mod_start, mod_entry->mod_end, false, PT_ENTRY_GLOBAL);
+            mod_entry++;
+        }
+    }
 }
 
 void kmem_page_init(const boot_param* param)
@@ -232,9 +283,39 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
     pt->page_phys[po] = physical_address | flags | PT_ENTRY_PRESENT;
 }
 
+static page_table_legacy* kmem_page_table_create_legacy(page_context* c, uint32 table_number, uint32 flags)
+{
+    page_table_legacy* pt;
+    uint32 phys;
+    uint32 i;
+    
+    // TODO: Use proper memory allocation once it's available
+    c->legacy_dir->page_table_virt[table_number] = pt = kmalloc_early(sizeof(page_table_legacy), __alignof__(page_table_legacy), &phys);
+    c->legacy_dir->page_table_phys[table_number] = phys | flags | PD_ENTRY_PRESENT;
+    
+    for (i = 0; i < sizeof(pt->page_phys) / sizeof(*pt->page_phys); i++)
+        pt->page_phys[i] = 0;
+    
+    return pt;
+}
+
 static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32 flags, uint32 physical_address)
 {
-    crash("Legacy paging support not implemented yet!");
+    page_table_legacy* pt;
+    uint32 pto, po;
+    
+    assert(c != NULL);
+    assert((physical_address & PAGE_PHYSICAL_ADDRESS_MASK_32) == physical_address);
+    assert((flags & PAGE_PHYSICAL_ADDRESS_MASK_32) == 0);
+    
+    pto = (virtual_address & 0xffc00000) >> 22;
+    po = (virtual_address & 0x003ff000) >> 12;
+    
+    pt = c->legacy_dir->page_table_virt[pto];
+    if (pt == NULL)
+        pt = kmem_page_table_create_legacy(c, pto, (virtual_address >= KERNEL_VIRTUAL_ADDRESS_BEGIN) ? PD_ENTRY_DEF_KERNEL : PD_ENTRY_DEF_USER);
+    
+    pt->page_phys[po] = physical_address | flags | PT_ENTRY_PRESENT;
 }
 
 void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
