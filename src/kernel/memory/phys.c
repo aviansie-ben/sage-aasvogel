@@ -147,14 +147,14 @@ mem_block* kmem_block_alloc(bool kernel)
     mem_block* pb;
     mem_block* b;
     
-    assert(low_region != NULL);
+    assert(high_region != NULL);
     
-    for (r = low_region; r != NULL; r = r->next)
+    for (r = high_region; r != NULL; r = r->next)
     {
         if (r->first_free != 0xffff)
         {
             spinlock_acquire(&r->lock);
-            for (pb = NULL, b = &r->block_info[r->first_free]; b != NULL; pb = b, b = &r->block_info[b->next_free])
+            for (pb = NULL, b = (r->first_free == 0xffff) ? NULL : &r->block_info[r->first_free]; b != NULL; pb = b, b = (b->next_free == 0xffff) ? NULL : &r->block_info[b->next_free])
             {
                 assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
                 
