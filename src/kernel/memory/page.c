@@ -207,7 +207,18 @@ static mem_block* kmem_page_get_mapping_pae(page_context* c, uint32 virtual_addr
 
 static mem_block* kmem_page_get_mapping_legacy(page_context* c, uint32 virtual_address)
 {
-    crash("Legacy paging support not implemented yet!");
+    uint32 pto, po;
+    page_table_legacy* t;
+    
+    pto = (virtual_address & 0xffc00000) >> 22;
+    po = (virtual_address & 0x003ff000) >> 12;
+    
+    t = c->legacy_dir->page_table_virt[pto];
+    
+    if (t == NULL || (t->page_phys[po] & PT_ENTRY_PRESENT) == 0)
+        return NULL;
+    else
+        return kmem_block_find(t->page_phys[po] & PAGE_PHYSICAL_ADDRESS_MASK_64);
 }
 
 mem_block* kmem_page_get_mapping(page_context* c, uint32 virtual_address)
@@ -354,7 +365,18 @@ static void kmem_page_unmap_pae(page_context* c, uint32 virtual_address)
 
 static void kmem_page_unmap_legacy(page_context* c, uint32 virtual_address)
 {
-    crash("Legacy paging support not implemented yet!");
+    page_table_legacy* pt;
+    uint32 pto, po;
+    
+    assert(c != NULL);
+    
+    pto = (virtual_address & 0xffc00000) >> 22;
+    po = (virtual_address & 0x003ff000) >> 12;
+    
+    pt = c->legacy_dir->page_table_virt[pto];
+    
+    if (pt != NULL)
+        pt->page_phys[po] = 0;
 }
 
 void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush)
