@@ -18,6 +18,7 @@
 
 #define magic_breakpoint() asm volatile ("xchg %bx, %bx");
 #define hang() magic_breakpoint(); while (true) { asm volatile ("cli; hlt"); }
+#define hang_soft() magic_breakpoint(); while (true) { asm volatile ("hlt"); }
 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
