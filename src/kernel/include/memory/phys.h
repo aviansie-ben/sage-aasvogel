@@ -48,6 +48,7 @@ mem_block* kmem_block_find(uint64 address);
 mem_block* kmem_block_next(mem_block* prev);
 
 mem_block* kmem_block_alloc(bool kernel);
+uint32 kmem_block_alloc_many(mem_block** blocks, uint32 num_blocks, bool kernel);
 void kmem_block_free(mem_block* block);
 
 void kmem_block_reserve(mem_block* start, mem_block* end, uint32 flags);

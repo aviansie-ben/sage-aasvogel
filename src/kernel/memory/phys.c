@@ -178,6 +178,50 @@ mem_block* kmem_block_alloc(bool kernel)
     return NULL;
 }
 
+uint32 kmem_block_alloc_many(mem_block** blocks, uint32 num_blocks, bool kernel)
+{
+    mem_region* r;
+    
+    mem_block* pb;
+    mem_block* b;
+    
+    uint32 i = 0;
+    
+    assert(high_region != NULL);
+    
+    for (r = high_region; r != NULL && i < num_blocks; r = r->next)
+    {
+        if (r->first_free != 0xffff)
+        {
+            spinlock_acquire(&r->lock);
+            for (pb = NULL, b = (r->first_free == 0xffff) ? NULL : &r->block_info[r->first_free]; b != NULL && i < num_blocks; b = (b->next_free == 0xffff) ? NULL : &r->block_info[b->next_free])
+            {
+                assert((b->flags & MEM_BLOCK_FREE) == MEM_BLOCK_FREE);
+                
+                if (!kernel && (b->flags & MEM_BLOCK_KERNEL_ONLY) == 0)
+                {
+                    pb = b;
+                    continue;
+                }
+                
+                b->flags &= (uint32)~MEM_BLOCK_FREE;
+                
+                // TODO Optimize this
+                if (pb == NULL)
+                    r->first_free = b->next_free;
+                else
+                    pb->next_free = b->next_free;
+                
+                blocks[i] = b;
+                i++;
+            }
+            spinlock_release(&r->lock);
+        }
+    }
+    
+    return i;
+}
+
 void kmem_block_free(mem_block* block)
 {
     mem_region* r;
