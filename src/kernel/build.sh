@@ -17,7 +17,7 @@ c_build="i686-elf-gcc -c -g -O0 -ffreestanding -std=gnu99 -I$source_directory/in
 linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-gcc -print-file-name=libgcc.a))"
 linker_suffix="-lgcc"
 
-asm_files=$(find $source_directory -name '*.s')
+asm_files=$(find $source_directory -name '*.S')
 c_files=$(find $source_directory -name '*.c')
 
 echo "Building kernel..."
@@ -29,7 +29,7 @@ do
     
     # Find the object file name
     obj=${src/$source_directory/$object_directory}
-    obj=${obj/.s/.s.o}
+    obj=${obj/.S/.S.o}
     
     # Make sure the folder for the object file exists
     if [ ! -d $(dirname $obj) ]
