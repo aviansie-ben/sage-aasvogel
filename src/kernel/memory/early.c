@@ -68,12 +68,12 @@ void kmem_early_init(multiboot_info* multiboot)
         ensure_min_alloc_gte(multiboot->elf_shdr_table.addr + (multiboot->elf_shdr_table.num * sizeof(elf32_shdr)));
         
         shdr_entry = (elf32_shdr*) (multiboot->elf_shdr_table.addr + 0xC0000000);
-        shdr_end = shdr_entry + multiboot->elf_shdr_table.num;
+        shdr_end = (elf32_shdr*) ((uint32)shdr_entry + (multiboot->elf_shdr_table.num * multiboot->elf_shdr_table.size));
         
         while (shdr_entry != shdr_end)
         {
             ensure_min_alloc_gte(((shdr_entry->addr >= 0xC0000000) ? (shdr_entry->addr - 0xC0000000) : shdr_entry->addr) + shdr_entry->size);
-            shdr_entry++;
+            shdr_entry = (elf32_shdr*) ((uint32) shdr_entry + multiboot->elf_shdr_table.size);
         }
     }
     
