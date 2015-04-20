@@ -1,10 +1,9 @@
 .intel_syntax noprefix
-
-.globl _isr_handlers
-.globl _irq_handlers
-.globl idt_flush
+.altmacro
 
 .section .text
+.globl idt_flush
+.type idt_flush, @function
 idt_flush:
     # Get the pointer that we have been passed to the structure that points to
     # the IDT
@@ -14,7 +13,9 @@ idt_flush:
     lidt [eax]
     
     ret
+.size idt_flush, .-idt_flush
 
+.type interrupt_common, @function
 interrupt_common:
     # Push registers onto the stack
     pusha
@@ -133,298 +134,90 @@ interrupt_common:
     
     # Return from the interrupt handler
     iret
+.size interrupt_common, .-interrupt_common
 
 # These are lists of pointers to the handler stub functions that idt.cpp will
 # use to initialize the IDT entries.
-.section .data
-_isr_handlers:
-    .int isr_0
-    .int isr_1
-    .int isr_2
-    .int isr_3
-    .int isr_4
-    .int isr_5
-    .int isr_6
-    .int isr_7
-    .int isr_8
-    .int isr_9
-    .int isr_10
-    .int isr_11
-    .int isr_12
-    .int isr_13
-    .int isr_14
-    .int isr_15
-    .int isr_16
-    .int isr_17
-    .int isr_18
-    .int isr_19
-    .int isr_20
-    .int isr_21
-    .int isr_22
-    .int isr_23
-    .int isr_24
-    .int isr_25
-    .int isr_26
-    .int isr_27
-    .int isr_28
-    .int isr_29
-    .int isr_30
-    .int isr_31
+.macro function_pointers prefix, from, to
+.int prefix&from
+.if to-from
+function_pointers prefix, %(from+1), to
+.endif
+.endm
 
+.section .data
+.globl _isr_handlers
+.type _isr_handlers, @object
+.hidden _isr_handlers
+_isr_handlers:
+function_pointers isr_, 0, 31
+.size _isr_handlers, .-_isr_handlers
+
+.globl _irq_handlers
+.type _irq_handlers, @object
+.hidden _irq_handlers
 _irq_handlers:
-    .int irq_0
-    .int irq_1
-    .int irq_2
-    .int irq_3
-    .int irq_4
-    .int irq_5
-    .int irq_6
-    .int irq_7
-    .int irq_8
-    .int irq_9
-    .int irq_10
-    .int irq_11
-    .int irq_12
-    .int irq_13
-    .int irq_14
-    .int irq_15
+function_pointers irq_, 0, 15
+.size _irq_handlers, .-_irq_handlers
 
 # Below this point are the handler stub functions that push the interrupt number
 # and (if necessary) a default error code of 0 onto the stack and then call into
 # interrupt_common.
 .section .text
-isr_0:
+
+.macro isr_without_error_code n
+.type isr_&n&, @function
+isr_&n&:
     push 0
+    push n
+    jmp interrupt_common
+.size isr_&n&, .-isr_&n&
+.endm
+
+.macro isr_with_error_code n
+.type isr_&n&, @function
+isr_&n&:
+    push n
+    jmp interrupt_common
+.size isr_&n&, .-isr_&n&
+.endm
+
+.macro isrs_without_error_code from, to
+isr_without_error_code from
+.if to-from
+isrs_without_error_code %(from+1), to
+.endif
+.endm
+
+.macro isrs_with_error_code from, to
+isr_with_error_code from
+.if to-from
+isrs_with_error_code %(from+1), to
+.endif
+.endm
+
+isrs_without_error_code 0, 7
+isr_with_error_code 8
+isr_without_error_code 9
+isrs_with_error_code 10, 14
+isrs_without_error_code 15, 31
+
+.macro irq n
+.type irq_&n&, @function
+irq_&n&:
     push 0
+    push n+32
     jmp interrupt_common
+.size irq_&n&, .-irq_&n&
+.endm
 
-isr_1:
-    push 0
-    push 1
-    jmp interrupt_common
+.macro irqs from, to
+irq from
+.if to-from
+irqs %(from+1), to
+.endif
+.endm
 
-isr_2:
-    push 0
-    push 2
-    jmp interrupt_common
-
-isr_3:
-    push 0
-    push 3
-    jmp interrupt_common
-
-isr_4:
-    push 0
-    push 4
-    jmp interrupt_common
-
-isr_5:
-    push 0
-    push 5
-    jmp interrupt_common
-    
-isr_6:
-    push 0
-    push 6
-    jmp interrupt_common
-
-isr_7:
-    push 0
-    push 7
-    jmp interrupt_common
-
-isr_8:
-    push 8
-    jmp interrupt_common
-
-isr_9:
-    push 0
-    push 9
-    jmp interrupt_common
-
-isr_10:
-    push 10
-    jmp interrupt_common
-
-isr_11:
-    push 11
-    jmp interrupt_common
-
-isr_12:
-    push 12
-    jmp interrupt_common
-
-isr_13:
-    push 13
-    jmp interrupt_common
-
-isr_14:
-    push 14
-    jmp interrupt_common
-
-isr_15:
-    push 0
-    push 15
-    jmp interrupt_common
-
-isr_16:
-    push 0
-    push 16
-    jmp interrupt_common
-
-isr_17:
-    push 0
-    push 17
-    jmp interrupt_common
-
-isr_18:
-    push 0
-    push 18
-    jmp interrupt_common
-
-isr_19:
-    push 0
-    push 19
-    jmp interrupt_common
-
-isr_20:
-    push 0
-    push 20
-    jmp interrupt_common
-
-isr_21:
-    push 0
-    push 21
-    jmp interrupt_common
-
-isr_22:
-    push 0
-    push 22
-    jmp interrupt_common
-
-isr_23:
-    push 0
-    push 23
-    jmp interrupt_common
-
-isr_24:
-    push 0
-    push 24
-    jmp interrupt_common
-
-isr_25:
-    push 0
-    push 25
-    jmp interrupt_common
-
-isr_26:
-    push 0
-    push 26
-    jmp interrupt_common
-
-isr_27:
-    push 0
-    push 27
-    jmp interrupt_common
-
-isr_28:
-    push 0
-    push 28
-    jmp interrupt_common
-
-isr_29:
-    push 0
-    push 29
-    jmp interrupt_common
-
-isr_30:
-    push 0
-    push 30
-    jmp interrupt_common
-
-isr_31:
-    push 0
-    push 31
-    jmp interrupt_common
-
-irq_0:
-    push 0
-    push 32
-    jmp interrupt_common
-
-irq_1:
-    push 0
-    push 33
-    jmp interrupt_common
-
-irq_2:
-    push 0
-    push 34
-    jmp interrupt_common
-
-irq_3:
-    push 0
-    push 35
-    jmp interrupt_common
-
-irq_4:
-    push 0
-    push 36
-    jmp interrupt_common
-
-irq_5:
-    push 0
-    push 37
-    jmp interrupt_common
-
-irq_6:
-    push 0
-    push 38
-    jmp interrupt_common
-
-irq_7:
-    push 0
-    push 39
-    jmp interrupt_common
-
-irq_8:
-    push 0
-    push 40
-    jmp interrupt_common
-
-irq_9:
-    push 0
-    push 41
-    jmp interrupt_common
-
-irq_10:
-    push 0
-    push 42
-    jmp interrupt_common
-
-irq_11:
-    push 0
-    push 43
-    jmp interrupt_common
-
-irq_12:
-    push 0
-    push 44
-    jmp interrupt_common
-
-irq_13:
-    push 0
-    push 45
-    jmp interrupt_common
-
-irq_14:
-    push 0
-    push 46
-    jmp interrupt_common
-
-irq_15:
-    push 0
-    push 47
-    jmp interrupt_common
+irqs 0, 15
 
 .att_syntax

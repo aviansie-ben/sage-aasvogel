@@ -1,8 +1,7 @@
 .intel_syntax noprefix
 
 .globl gdt_flush
-.globl tss_load
-
+.type gdt_flush, @function
 gdt_flush:
     # We are passed a pointer to a structure that the CPU uses to find and load
     # the GDT.
@@ -25,7 +24,10 @@ gdt_flush:
 
 .Lend:
     ret
+.size gdt_flush, .-gdt_flush
 
+.globl tss_load
+.type tss_load, @function
 tss_load:
     # We are passed the offset of the TSS to be loaded from the GDT. However, it
     # is in entries, so we multiply by the number of bytes per entry (8) to get
@@ -38,5 +40,6 @@ tss_load:
     ltr ax
     
     ret
+.size tss_load, .-tss_load
 
 .att_syntax

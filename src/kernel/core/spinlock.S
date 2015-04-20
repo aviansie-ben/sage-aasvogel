@@ -1,9 +1,7 @@
 .intel_syntax noprefix
 
 .globl spinlock_init
-.globl spinlock_acquire
-.globl spinlock_release
-
+.type spinlock_init, @function
 spinlock_init:
     push ebp
     mov ebp, esp
@@ -15,7 +13,10 @@ spinlock_init:
     mov esp, ebp
     pop ebp
     ret
+.size spinlock_init, .-spinlock_init
 
+.globl spinlock_acquire
+.type spinlock_acquire, @function
 spinlock_acquire:
     push ebp
     mov ebp, esp
@@ -53,7 +54,10 @@ spinlock_acquire:
     mov esp, ebp
     pop ebp
     ret
+.size spinlock_acquire, .-spinlock_acquire
 
+.globl spinlock_release
+.type spinlock_release, @function
 spinlock_release:
     push ebp
     mov ebp, esp
@@ -75,3 +79,4 @@ spinlock_release:
     mov esp, ebp
     pop ebp
     ret
+.size spinlock_release, .-spinlock_release
