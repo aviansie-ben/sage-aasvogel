@@ -4,6 +4,8 @@
 #include <memory/phys.h>
 #include <memory/page.h>
 
+#include <core/elf.h>
+
 static bool init_done = false;
 static bool final_done = false;
 
@@ -43,24 +45,46 @@ void* kmalloc_early(size_t size, size_t align, uint32* physical_address)
     return (void*)(r + 0xC0000000);
 }
 
+static inline void ensure_min_alloc_gte(uint32 addr)
+{
+    if (min_alloc < addr)
+        min_alloc = addr;
+}
+
 void kmem_early_init(multiboot_info* multiboot)
 {
     multiboot_module_entry* mod_entry;
     multiboot_module_entry* mod_end;
     
+    elf32_shdr* shdr_entry;
+    elf32_shdr* shdr_end;
+    
     assert(!init_done && !final_done);
     
     min_alloc = (uint32)&_ld_kernel_end;
+    
+    if (multiboot->flags & MB_FLAG_ELF_SHDR)
+    {
+        ensure_min_alloc_gte(multiboot->elf_shdr_table.addr + (multiboot->elf_shdr_table.num * sizeof(elf32_shdr)));
+        
+        shdr_entry = (elf32_shdr*) (multiboot->elf_shdr_table.addr + 0xC0000000);
+        shdr_end = shdr_entry + multiboot->elf_shdr_table.num;
+        
+        while (shdr_entry != shdr_end)
+        {
+            ensure_min_alloc_gte(((shdr_entry->addr >= 0xC0000000) ? (shdr_entry->addr - 0xC0000000) : shdr_entry->addr) + shdr_entry->size);
+            shdr_entry++;
+        }
+    }
     
     if (multiboot->flags & MB_FLAG_MODULES)
     {
         mod_entry = (multiboot_module_entry*) (multiboot->mods_addr + 0xC0000000);
         mod_end = mod_entry + multiboot->mods_count;
         
-        while (mod_entry < mod_end)
+        while (mod_entry != mod_end)
         {
-            if (mod_entry->mod_end > min_alloc)
-                min_alloc = mod_entry->mod_end;
+            ensure_min_alloc_gte(mod_entry->mod_end);
             mod_entry++;
         }
     }
