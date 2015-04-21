@@ -127,7 +127,7 @@ void idt_init(void)
     // TODO: Use APIC when available instead of the PIC
     
     // Set up the IDT pointer
-    idt_ptr.base = (uint32)&idt_entries - 0xC0000000;
+    idt_ptr.base = (uint32)&idt_entries;
     idt_ptr.size = sizeof(idt_entries) - 1;
     
     // All interrupts here are initialized with a segment of 0x08 (the kernel

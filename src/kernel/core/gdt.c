@@ -10,7 +10,7 @@ void gdt_init(void)
     uint32 i;
     
     // Set up the GDT pointer
-    gdt_ptr.base = (uint32)&gdt_entries - 0xC0000000;
+    gdt_ptr.base = (uint32)&gdt_entries;
     gdt_ptr.limit = sizeof(gdt_entry) * GDT_NUM_ENTRIES - 1;
     
     // 0x00 is the NULL descriptor
