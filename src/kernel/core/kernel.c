@@ -7,6 +7,7 @@
 #include <core/cpuid.h>
 #include <core/gdt.h>
 #include <core/idt.h>
+#include <core/ksym.h>
 
 #include <core/tty.h>
 #include <assert.h>
@@ -51,6 +52,10 @@ void kernel_main(multiboot_info* multiboot)
     
     // Parse the command-line parameters passed by the bootloader
     parse_boot_cmdline(multiboot, &gparam);
+    
+    // Now, load the kernel symbols from the information passed by the
+    // bootloader
+    ksym_load_kernel_symbols(multiboot);
     
     // Now pass control to the next stage of kernel initialization
     kernel_main2(&gparam);
