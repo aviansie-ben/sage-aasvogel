@@ -11,14 +11,14 @@ static void lookup_name(unsigned int address, char* out)
 {
     char tmp[9];
     
-    const char* symbol_name;
+    const kernel_symbol* symbol;
     uint32 symbol_offset;
     
-    if (ksym_address_lookup(address, &symbol_name, &symbol_offset))
+    if ((symbol = ksym_address_lookup(address, &symbol_offset)) != NULL)
     {
         itoa((int) symbol_offset, tmp, 16);
         
-        strcpy(out, symbol_name);
+        strcpy(out, symbol->name);
         strcat(out, "+0x");
         strcat(out, tmp);
     }
@@ -36,7 +36,7 @@ static void crash_print_stackframe(unsigned int eip, void* esp)
     char name[50];
     
     lookup_name(eip, name);
-    tprintf(&tty_virtual_consoles[0].base, "  %s - Stack Frame 0x%x\n", name, esp);
+    tprintf(&tty_virtual_consoles[0].base, "  %s\n", name);
 }
 
 void do_crash(const char* msg, const char* file, const char* func, uint32 line)

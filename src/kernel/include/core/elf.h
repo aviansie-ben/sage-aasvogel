@@ -76,11 +76,12 @@
 #define STT_SECTION 3
 #define STT_FILE    4
 
+#define ELF32_ST_VISIBILITY(i) ((i) & 0x3)
+
 #define STV_DEFAULT   0
 #define STV_INTERNAL  1
 #define STV_HIDDEN    2
 #define STV_PROTECTED 3
-#define STV_BITMASK   3
 
 #define ELF32_R_SYM(i)    ((i) >> 8)
 #define ELF32_R_TYPE(i)   ((unsigned char)(i))

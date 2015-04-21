@@ -23,6 +23,19 @@ void strcat(char* dest, const char* src)
     *dest = '\0';
 }
 
+size_t strlen(const char* str)
+{
+    size_t sz = 0;
+    
+    while (*str != '\0')
+    {
+        sz++;
+        str++;
+    }
+    
+    return sz;
+}
+
 static void reverse(char* s, size_t len)
 {
     uint32 i = 0, j = len - 1;

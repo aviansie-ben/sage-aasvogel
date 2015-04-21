@@ -2,8 +2,35 @@
 #define CORE_KSYM_H
 
 #include <typedef.h>
+#include <multiboot.h>
 
-extern bool ksym_address_lookup(uint32 virtual_address, const char** symbol_name, uint32* symbol_offset);
+typedef enum
+{
+    KSYM_TYPE_FUNCTION,
+    KSYM_TYPE_OBJECT,
+    KSYM_TYPE_OTHER
+} kernel_symbol_type;
+
+typedef enum
+{
+    KSYM_VISIBILITY_PUBLIC,
+    KSYM_VISIBILITY_PRIVATE,
+    KSYM_VISIBILITY_FILE_LOCAL
+} kernel_symbol_visibility;
+
+typedef struct
+{
+    const char* name;
+    uint32 address;
+    uint32 size;
+    
+    uint8 type;
+    uint8 visibility;
+} kernel_symbol;
+
+extern const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset);
 extern uint32 ksym_symbol_lookup(const char* symbol_name);
+
+extern void ksym_load_kernel_symbols(multiboot_info* multiboot);
 
 #endif
