@@ -44,8 +44,8 @@ static interrupt_handler isr_handlers[IDT_NUM_ISRS];
 static interrupt_handler irq_handlers[IDT_NUM_IRQS];
 static interrupt_handler ext_handlers[IDT_NUM_EXT];
 
-void _idt_handle(regs32* r);
-bool _idt_is_ring0(regs32* r);
+void _idt_handle(regs32* r) __hidden;
+bool _idt_is_ring0(regs32* r) __hidden;
 
 static void remap_pic(uint8 offset_master, uint8 offset_slave)
 {

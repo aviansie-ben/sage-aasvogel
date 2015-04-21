@@ -7,8 +7,8 @@
 
 #include "preinit.h"
 
-bool _preinit_no_pae __section__(".setup_data") = false;
-bool _preinit_serial_enable __section__(".setup_data") = false;
+bool _preinit_no_pae __hidden __section__(".setup_data") = false;
+bool _preinit_serial_enable __hidden __section__(".setup_data") = false;
 
 void _preinit_parse_cmdline(multiboot_info* mb_info)
 {

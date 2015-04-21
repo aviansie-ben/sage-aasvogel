@@ -7,7 +7,7 @@
 
 #include "preinit.h"
 
-bool _preinit_pae_enabled __section__(".setup_data") = false;
+bool _preinit_pae_enabled __hidden __section__(".setup_data") = false;
 
 // All entries need to have the present bit to prevent page faults, and the PDEs
 // and PTEs need to have the writable bit.
