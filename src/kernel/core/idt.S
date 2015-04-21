@@ -1,6 +1,8 @@
 .intel_syntax noprefix
 .altmacro
 
+#include <core/idt.h>
+
 .section .text
 .globl idt_flush
 .type idt_flush, @function
@@ -150,15 +152,22 @@ function_pointers prefix, %(from+1), to
 .type _isr_handlers, @object
 .hidden _isr_handlers
 _isr_handlers:
-function_pointers isr_, 0, 31
+function_pointers isr_, 0, (IDT_NUM_ISRS - 1)
 .size _isr_handlers, .-_isr_handlers
 
 .globl _irq_handlers
 .type _irq_handlers, @object
 .hidden _irq_handlers
 _irq_handlers:
-function_pointers irq_, 0, 15
+function_pointers irq_, 0, (IDT_NUM_IRQS - 1)
 .size _irq_handlers, .-_irq_handlers
+
+.globl _ext_handlers
+.type _ext_handlers, @object
+.hidden _ext_handlers
+_ext_handlers:
+function_pointers ext_, 0, (IDT_NUM_EXT - 1)
+.size _ext_handlers, .-_ext_handlers
 
 # Below this point are the handler stub functions that push the interrupt number
 # and (if necessary) a default error code of 0 onto the stack and then call into
@@ -206,7 +215,7 @@ isrs_without_error_code 15, 31
 .type irq_&n&, @function
 irq_&n&:
     push 0
-    push n+32
+    push (n + IDT_IRQS_START)
     jmp interrupt_common
 .size irq_&n&, .-irq_&n&
 .endm
@@ -218,6 +227,24 @@ irqs %(from+1), to
 .endif
 .endm
 
-irqs 0, 15
+irqs 0, (IDT_NUM_IRQS - 1)
+
+.macro ext_handler n
+.type ext_&n&, @function
+ext_&n&:
+    push 0
+    push (n + IDT_EXT_START)
+    jmp interrupt_common
+.size ext_&n&, .-ext_&n&
+.endm
+
+.macro ext_handlers from, to
+ext_handler from
+.if to-from
+ext_handlers %(from+1), to
+.endif
+.endm
+
+ext_handlers 0, (IDT_NUM_EXT - 1)
 
 .att_syntax

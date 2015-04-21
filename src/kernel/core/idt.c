@@ -34,13 +34,15 @@ typedef void (*asm_int_handler)(void);
 // IDT when it is initialized.
 extern asm_int_handler _isr_handlers[IDT_NUM_ISRS];
 extern asm_int_handler _irq_handlers[IDT_NUM_IRQS];
+extern asm_int_handler _ext_handlers[IDT_NUM_EXT];
 
 static idt_pointer idt_ptr;
-idt_entry idt_entries[IDT_NUM_ENTRIES];
+static idt_entry idt_entries[IDT_NUM_ENTRIES];
 
 static interrupt_handler default_isr_handler = do_crash_unhandled_isr;
 static interrupt_handler isr_handlers[IDT_NUM_ISRS];
 static interrupt_handler irq_handlers[IDT_NUM_IRQS];
+static interrupt_handler ext_handlers[IDT_NUM_EXT];
 
 void _idt_handle(regs32* r);
 bool _idt_is_ring0(regs32* r);
@@ -140,6 +142,9 @@ void idt_init(void)
     // Load the IRQ handlers into the IDT
     for (i = 0; i < IDT_NUM_IRQS; i++) idt_set_entry(IDT_IRQS_START + i, (uint32) _irq_handlers[i], 0x08, 0x8E);
     
+    // Load the extended interrupt handlers into the IDT
+    for (i = 0; i < IDT_NUM_EXT; i++) idt_set_entry(IDT_EXT_START + i, (uint32) _ext_handlers[i], 0x08, 0xEF);
+    
     // Flush the IDT
     idt_flush(&idt_ptr);
     
@@ -194,9 +199,16 @@ void idt_register_irq_handler(uint32 n, interrupt_handler handler)
 void idt_set_irq_enabled(uint32 n, bool enabled)
 {
     assert(n < IDT_NUM_IRQS);
-    assert(irq_handlers[n] != 0);
+    assert(irq_handlers[n] != 0 || !enabled);
     
     set_pic_irq_masked((uint8)n, !enabled);
+}
+
+void idt_register_ext_handler(uint32 n, interrupt_handler handler)
+{
+    assert(n < IDT_NUM_EXT);
+    
+    ext_handlers[n] = handler;
 }
 
 static uint16 read_pic_isr(void)
@@ -269,6 +281,10 @@ void _idt_handle(regs32* r)
         
         if (!irq_begin(r))
             return;
+    }
+    else if (r->int_no >= IDT_EXT_START && r->int_no < IDT_EXT_START + IDT_NUM_EXT)
+    {
+        handler = ext_handlers[r->int_no - IDT_EXT_START];
     }
     
     // Call the relevant handler

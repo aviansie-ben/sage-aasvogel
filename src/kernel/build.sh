@@ -38,7 +38,7 @@ do
     fi
     
     # Call the assembly compiler
-    if ! $c_build -D__SOURCE_FILE__='"'${src/$source_directory\//}'"' $src -o $obj
+    if ! $c_build -D__SOURCE_FILE__='"'${src/$source_directory\//}'"' -D__ASSEMBLY__ $src -o $obj
     then
         exit 1
     fi
