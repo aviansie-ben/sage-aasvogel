@@ -1,13 +1,18 @@
 #include <core/tty.h>
 #include <core/console.h>
+#include <hwio.h>
 #include <assert.h>
 #include <string.h>
 
 #include <stdarg.h>
 
+#define BDA_SERIAL_PORTS 0xC0000400
+
 tty_vc tty_virtual_consoles[TTY_NUM_VCS];
 static console_char tty_vc_buffers[TTY_NUM_VCS][CONSOLE_WIDTH * CONSOLE_HEIGHT];
 static tty_vc* active_vc;
+
+tty_serial tty_serial_consoles[TTY_NUM_SERIAL];
 
 static void tty_vc_flush(tty_base* base)
 {
@@ -88,6 +93,30 @@ static void tty_vc_write(tty_base* base, char ch)
     }
 }
 
+static void tty_serial_flush(tty_base* base)
+{
+    // Do nothing
+}
+
+static void tty_serial_clear(tty_base* base)
+{
+    // TODO: Implement this?
+}
+
+static void tty_serial_write(tty_base* base, char ch)
+{
+    tty_serial* tty = (tty_serial*) base;
+    
+    if (tty->io_port != 0)
+    {
+        if (ch == '\n')
+            tty_serial_write(base, '\r');
+        
+        while ((inb((uint16) (tty->io_port + 5)) & 0x20) == 0) ;
+        outb(tty->io_port, (uint8)ch);
+    }
+}
+
 void tty_init(void)
 {
     uint32 i;
@@ -100,6 +129,11 @@ void tty_init(void)
     tty_virtual_consoles[0].is_active = true;
     tty_virtual_consoles[0].base.flush(&tty_virtual_consoles[0].base);
     active_vc = &tty_virtual_consoles[0];
+    
+    for (i = 0; i < TTY_NUM_SERIAL; i++)
+    {
+        tty_init_serial(&tty_serial_consoles[i], *(((uint16*) BDA_SERIAL_PORTS) + i));
+    }
 }
 
 void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
@@ -125,6 +159,45 @@ void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
     tty->buffer = buffer;
     tty->buffer_line = 0;
     tty->is_active = false;
+}
+
+void tty_init_serial(tty_serial* tty, uint16 io_port)
+{
+    spinlock_init(&tty->base.lock);
+    
+    // TODO: Find values for these?
+    tty->base.width = 0;
+    tty->base.height = 0;
+    
+    tty->base.flush = tty_serial_flush;
+    tty->base.clear = tty_serial_clear;
+    tty->base.write = tty_serial_write;
+    
+    tty->base.supports_color = false;
+    tty->base.supports_cursor = false;
+    
+    tty->io_port = io_port;
+    
+    if (io_port != 0)
+    {
+        // Disable interrupts during configuration
+        outb((uint16)(io_port + 1), 0x00);
+        
+        // TODO: Make the divisor and mode configurable in some way
+        // Set the divisor to 12 (9600 baud)
+        outb((uint16)(io_port + 3), 0x80);
+        outb((uint16)(io_port + 0), 0x0C);
+        outb((uint16)(io_port + 1), 0x00);
+        
+        // Set the mode to 8N1
+        outb((uint16)(io_port + 3), 0x03);
+        
+        // Enable FIFO
+        outb((uint16)(io_port + 2), 0xC7);
+        
+        // Enable interrupts
+        outb((uint16)(io_port + 1), 0x0B);
+    }
 }
 
 void tty_write(tty_base* tty, const char* msg)
