@@ -400,6 +400,34 @@ void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush)
     spinlock_release(&c->lock);
 }
 
+static void kmem_page_global_map_pae(uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
+{
+    spinlock_acquire(&kernel_page_context.lock);
+    
+    kmem_page_map_pae(&kernel_page_context, virtual_address, flags, kmem_block_address(block));
+    
+    if (flush)
+        kmem_page_flush_one(virtual_address);
+    
+    spinlock_release(&kernel_page_context.lock);
+}
+
+static void kmem_page_global_map_legacy(uint32 virtual_address, uint32 flags, bool flush, mem_block* block)
+{
+    crash("Global page mapping for legacy paging is not yet supported!");
+}
+
+void kmem_page_global_map(uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
+{
+    assert(virtual_address >= KERNEL_VIRTUAL_ADDRESS_BEGIN);
+    assert(block != NULL);
+    
+    if (use_pae)
+        kmem_page_global_map_pae(virtual_address, flags, flush, block);
+    else if (use_pge)
+        kmem_page_global_map_legacy(virtual_address, (uint32) flags, flush, block);
+}
+
 void kmem_page_flush_one(uint32 virtual_address)
 {
     // If the CPU supports PGE, we can flush a single TLB entry using the INVLPG
