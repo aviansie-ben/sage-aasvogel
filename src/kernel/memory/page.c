@@ -424,8 +424,35 @@ void kmem_page_global_map(uint32 virtual_address, uint64 flags, bool flush, mem_
     
     if (use_pae)
         kmem_page_global_map_pae(virtual_address, flags, flush, block);
-    else if (use_pge)
+    else
         kmem_page_global_map_legacy(virtual_address, (uint32) flags, flush, block);
+}
+
+static void kmem_page_global_unmap_pae(uint32 virtual_address, bool flush)
+{
+    spinlock_acquire(&kernel_page_context.lock);
+    
+    kmem_page_unmap_pae(&kernel_page_context, virtual_address);
+    
+    if (flush)
+        kmem_page_flush_one(virtual_address);
+    
+    spinlock_release(&kernel_page_context.lock);
+}
+
+static void kmem_page_global_unmap_legacy(uint32 virtual_address, bool flush)
+{
+    crash("Global page mapping for legacy paging is not yet supported!");
+}
+
+void kmem_page_global_unmap(uint32 virtual_address, bool flush)
+{
+    assert(virtual_address >= KERNEL_VIRTUAL_ADDRESS_BEGIN);
+    
+    if (use_pae)
+        kmem_page_global_unmap_pae(virtual_address, flush);
+    else
+        kmem_page_global_unmap_legacy(virtual_address, flush);
 }
 
 void kmem_page_flush_one(uint32 virtual_address)
