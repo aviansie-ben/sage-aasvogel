@@ -157,7 +157,7 @@ void kmem_page_init(const boot_param* param)
     
     assert(!init_done);
     
-    use_pge = cpuid_supports_feature_edx(CPUID_FEATURE_EDX_PGE);
+    use_pge = cpuid_supports_feature_edx(CPUID_FEATURE_EDX_PGE) && !cmdline_get_bool(param, "no_pge");
     
     asm volatile ("mov %%cr4, %0" : "=r" (cr4));
     use_pae = ((cr4 & (1 << 5)) != 0);
