@@ -280,6 +280,9 @@ static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 fl
     if (!use_nx)
         flags &= ~PT_ENTRY_NO_EXECUTE;
     
+    if (!use_pge)
+        flags &= (uint32)~PT_ENTRY_GLOBAL;
+    
     assert(c != NULL);
     assert((physical_address & PAGE_PHYSICAL_ADDRESS_MASK_64) == physical_address);
     assert((flags & PAGE_PHYSICAL_ADDRESS_MASK_64) == 0);
@@ -318,6 +321,9 @@ static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32
     assert(c != NULL);
     assert((physical_address & PAGE_PHYSICAL_ADDRESS_MASK_32) == physical_address);
     assert((flags & PAGE_PHYSICAL_ADDRESS_MASK_32) == 0);
+    
+    if (!use_pge)
+        flags &= (uint32)~PT_ENTRY_GLOBAL;
     
     pto = (virtual_address & 0xffc00000) >> 22;
     po = (virtual_address & 0x003ff000) >> 12;
