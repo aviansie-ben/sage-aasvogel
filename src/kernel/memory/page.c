@@ -189,6 +189,48 @@ void kmem_page_context_switch(page_context* c)
     asm volatile ("mov %0, %%cr3" : : "r" (c->physical_address));
 }
 
+mem_block* kmem_page_global_alloc(uint32 virtual_address, uint64 page_flags, bool flush)
+{
+    mem_block* b = kmem_block_alloc(true);
+    
+    if (b != NULL)
+        kmem_page_global_map(virtual_address, page_flags, flush, b);
+    
+    return b;
+}
+
+mem_block* kmem_page_alloc(page_context* c, uint32 virtual_address, uint64 page_flags, bool flush)
+{
+    mem_block* b = kmem_block_alloc(false);
+    
+    if (b != NULL)
+        kmem_page_map(c, virtual_address, page_flags, flush, b);
+    
+    return b;
+}
+
+void kmem_page_global_free(uint32 virtual_address, bool flush)
+{
+    mem_block* b = kmem_page_get_mapping(&kernel_page_context, virtual_address);
+    
+    if (b != NULL)
+    {
+        kmem_page_global_unmap(virtual_address, flush);
+        kmem_block_free(b);
+    }
+}
+
+void kmem_page_free(page_context* c, uint32 virtual_address, bool flush)
+{
+    mem_block* b = kmem_page_get_mapping(c, virtual_address);
+    
+    if (b != NULL)
+    {
+        kmem_page_unmap(c, virtual_address, flush);
+        kmem_block_free(b);
+    }
+}
+
 static mem_block* kmem_page_get_mapping_pae(page_context* c, uint32 virtual_address)
 {
     uint32 pto, po;

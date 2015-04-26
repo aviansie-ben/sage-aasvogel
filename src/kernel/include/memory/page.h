@@ -110,6 +110,12 @@ void kmem_page_context_create(page_context* c);
 void kmem_page_context_destroy(page_context* c);
 void kmem_page_context_switch(page_context* c);
 
+mem_block* kmem_page_global_alloc(uint32 virtual_address, uint64 page_flags, bool flush);
+mem_block* kmem_page_alloc(page_context* c, uint32 virtual_address, uint64 page_flags, bool flush);
+
+void kmem_page_global_free(uint32 virtual_address, bool flush);
+void kmem_page_free(page_context* c, uint32 virtual_address, bool flush);
+
 mem_block* kmem_page_get_mapping(page_context* c, uint32 virtual_address);
 void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, mem_block* block);
 void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush);
