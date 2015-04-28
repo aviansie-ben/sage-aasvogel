@@ -128,6 +128,32 @@ char* itoa_l(long long val, char* s, unsigned int base)
     return s;
 }
 
+void* memmove(void* dest, const void* src, size_t size)
+{
+    uint8* dest8 = dest;
+    const uint8* src8 = src;;
+    
+    if (src > dest)
+    {
+        while (size--)
+        {
+            *dest8++ = *src8++;
+        }
+    }
+    else if (src < dest)
+    {
+        dest8 += (size - 1);
+        src8 += (size - 1);
+        
+        while (size--)
+        {
+            *dest8-- = *src8--;
+        }
+    }
+    
+    return dest;
+}
+
 void* memcpy(void* dest, const void* src, size_t size)
 {
     uint8* dest8 = dest;

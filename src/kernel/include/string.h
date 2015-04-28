@@ -10,6 +10,7 @@ extern size_t strlen(const char* s);
 extern char* itoa(int val, char* s, unsigned int base);
 extern char* itoa_l(long long val, char* s, unsigned int base);
 
+extern void* memmove(void* dest, const void* src, size_t size);
 extern void* memcpy(void* dest, const void* src, size_t size);
 extern void* memset(void* ptr, int val, size_t size);
 
