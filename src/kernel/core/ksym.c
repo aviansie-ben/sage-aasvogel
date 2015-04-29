@@ -10,14 +10,26 @@ extern const void _ld_kernel_end;
 static uint32 num_kernel_symbols = 0;
 static kernel_symbol* kernel_symbols = NULL;
 
-const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset)
+static bool is_symbol_match(const kernel_symbol* ksym, uint32 virtual_address, uint32 flags)
+{
+    if ((flags & KSYM_ALOOKUP_RET) == KSYM_ALOOKUP_RET)
+    {
+        return (virtual_address > ksym->address && virtual_address <= (ksym->address + ksym->size));
+    }
+    else
+    {
+        return (virtual_address >= ksym->address && virtual_address < (ksym->address + ksym->size));
+    }
+}
+
+const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset, uint32 flags)
 {
     kernel_symbol* ksym = kernel_symbols;
     kernel_symbol* ksym_end = kernel_symbols + num_kernel_symbols;
     
     while (ksym != ksym_end)
     {
-        if (virtual_address >= ksym->address && virtual_address < (ksym->address + ksym->size))
+        if (is_symbol_match(ksym, virtual_address, flags))
         {
             if (symbol_offset != NULL)
                 *symbol_offset = virtual_address - ksym->address;

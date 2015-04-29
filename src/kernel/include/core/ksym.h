@@ -6,6 +6,11 @@
 
 typedef enum
 {
+    KSYM_ALOOKUP_RET = (1 << 0)
+} ksym_address_lookup_flags;
+
+typedef enum
+{
     KSYM_TYPE_FUNCTION,
     KSYM_TYPE_OBJECT,
     KSYM_TYPE_OTHER
@@ -28,7 +33,7 @@ typedef struct
     uint8 visibility;
 } kernel_symbol;
 
-extern const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset);
+extern const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset, uint32 flags);
 extern uint32 ksym_symbol_lookup(const char* symbol_name);
 
 extern void ksym_load_kernel_symbols(multiboot_info* multiboot);

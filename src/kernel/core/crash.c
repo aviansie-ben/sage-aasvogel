@@ -14,7 +14,7 @@ static void lookup_name(unsigned int address, char* out)
     const kernel_symbol* symbol;
     uint32 symbol_offset;
     
-    if ((symbol = ksym_address_lookup(address, &symbol_offset)) != NULL)
+    if ((symbol = ksym_address_lookup(address, &symbol_offset, KSYM_ALOOKUP_RET)) != NULL)
     {
         itoa((int) symbol_offset, tmp, 16);
         
