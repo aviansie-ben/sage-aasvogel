@@ -37,6 +37,7 @@ static void crash_print_stackframe(unsigned int eip, void* esp)
     
     lookup_name(eip, name);
     tprintf(&tty_virtual_consoles[0].base, "  %s\n", name);
+    tprintf(&tty_serial_consoles[0].base, "  %s\n", name);
 }
 
 void do_crash(const char* msg, const char* file, const char* func, uint32 line)
@@ -53,6 +54,7 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
     spinlock_release(&tty_virtual_consoles[0].base.lock);
     
     tprintf(&tty_virtual_consoles[0].base, "Sage Aasvogel has crashed!\n  %s\n  Location: %s line %d\n  Function: %s\n\nStack Trace:\n", msg, file, line, func);
+    tprintf(&tty_serial_consoles[0].base, "Kernel has crashed!\nStack Trace:\n");
     unchecked_unwind_here(1, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
     hang();
