@@ -4,8 +4,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include <stdarg.h>
-
 #define BDA_SERIAL_PORTS 0xC0000400
 
 tty_vc tty_virtual_consoles[TTY_NUM_VCS];
@@ -289,10 +287,15 @@ void tprintf(tty_base* tty, const char* format, ...)
 {
     va_list vararg;
     
+    va_start(vararg, format);
+    tvprintf(tty, format, vararg);
+    va_end(vararg);
+}
+
+void tvprintf(tty_base* tty, const char* format, va_list vararg)
+{
     char ch;
     char buf[256];
-    
-    va_start(vararg, format);
     
     spinlock_acquire(&tty->lock);
     
@@ -311,5 +314,4 @@ void tprintf(tty_base* tty, const char* format, ...)
     tty->flush(tty);
     
     spinlock_release(&tty->lock);
-    va_end(vararg);
 }

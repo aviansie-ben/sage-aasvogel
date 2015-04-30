@@ -3,6 +3,7 @@
 
 #include <core/console.h>
 #include <lock.h>
+#include <stdarg.h>
 
 #define TTY_NUM_VCS 5
 #define TTY_NUM_SERIAL 4
@@ -55,5 +56,6 @@ extern void tty_write(tty_base* tty, const char* msg);
 extern void tty_switch_vc(tty_vc* tty);
 
 extern void tprintf(tty_base* tty, const char* format, ...);
+extern void tvprintf(tty_base* tty, const char* format, va_list vararg);
 
 #endif
