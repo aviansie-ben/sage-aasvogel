@@ -1,5 +1,5 @@
 #include <core/ksym.h>
-#include <core/tty.h>
+#include <core/klog.h>
 #include <core/elf.h>
 
 #include <memory/early.h>
@@ -142,5 +142,5 @@ void ksym_load_kernel_symbols(multiboot_info* multiboot)
         }
     }
     
-    tprintf(&tty_virtual_consoles[0].base, "WARNING: No kernel symbol table found!\n");
+    klog(KLOG_LEVEL_WARN, "No kernel symbol table found!\n");
 }

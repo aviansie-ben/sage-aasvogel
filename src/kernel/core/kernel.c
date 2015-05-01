@@ -10,6 +10,7 @@
 #include <core/ksym.h>
 
 #include <core/tty.h>
+#include <core/klog.h>
 #include <assert.h>
 #include <core/version.h>
 
@@ -25,7 +26,7 @@ static void kernel_main2(const boot_param* param)
 {
     // Run CPUID checks
     cpuid_init();
-    tprintf(&tty_virtual_consoles[0].base, "Detected CPU Vendor: %s (%s)\n", cpuid_detected_vendor->vendor_name, cpuid_detected_vendor->vendor_id.str);
+    klog(KLOG_LEVEL_INFO, "Detected CPU Vendor: %s (%s)\n", cpuid_detected_vendor->vendor_name, cpuid_detected_vendor->vendor_id.str);
     
     // Initialize the GDT and IDT
     gdt_init();
@@ -44,7 +45,7 @@ void kernel_main(multiboot_info* multiboot)
     console_init();
     tty_init();
     
-    tprintf(&tty_virtual_consoles[0].base, "Booting " OS_NAME " v" STRINGIFY(MAJOR_VERSION) "." STRINGIFY(MINOR_VERSION) "...\n");
+    tprintf(&tty_virtual_consoles[0].base, "%CfBooting " OS_NAME " v" STRINGIFY(MAJOR_VERSION) "." STRINGIFY(MINOR_VERSION) "...\n", CONSOLE_COLOR_LIGHT_GRAY);
     
     // We need the early memory manager to be able to parse the command-line
     // parameters, so initialize that now.
@@ -52,6 +53,9 @@ void kernel_main(multiboot_info* multiboot)
     
     // Parse the command-line parameters passed by the bootloader
     parse_boot_cmdline(multiboot, &gparam);
+    
+    // Initialize the kernel-mode logging functions
+    klog_init(&gparam);
     
     // Now, load the kernel symbols from the information passed by the
     // bootloader

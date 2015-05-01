@@ -2,7 +2,7 @@
 #include <memory/early.h>
 #include <lock.h>
 #include <core/crash.h>
-#include <core/tty.h>
+#include <core/klog.h>
 
 #include <assert.h>
 
@@ -77,13 +77,13 @@ void kmem_phys_init(const boot_param* param)
     low_region = create_region(0x00000000, 0x100, MEM_BLOCK_KERNEL_ONLY | MEM_BLOCK_HW_RESERVED);
     
     high_blocks_left = param->multiboot->mem_upper >> 2;
-    tprintf(&tty_virtual_consoles[0].base, "Detected %dKiB of high memory\n", param->multiboot->mem_upper);
+    klog(KLOG_LEVEL_INFO, "Detected %dKiB of high memory\n", param->multiboot->mem_upper);
     
     // If PAE is disabled, memory above 4GiB must be ignored.
     asm volatile ("mov %%cr4, %0" : "=r" (cr4));
     if ((cr4 & (1 << 5)) == 0 && high_blocks_left > 0xFFF00)
     {
-        tprintf(&tty_virtual_consoles[0].base, "Memory above 4GiB is being ignored because PAE is disabled...\n");
+        klog(KLOG_LEVEL_NOTICE, "Memory above 4GiB is being ignored because PAE is disabled...\n");
         high_blocks_left = 0xFFF00;
     }
     

@@ -271,6 +271,24 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         itoa_l(l, buf, 16);
         tty_write(tty, buf);
     }
+    else if ((*format)[0] == 'C' && (*format)[1] == 'f')
+    {
+        *format += 2;
+        
+        i = va_arg(*vararg, console_color);
+        
+        if (tty->supports_color)
+            tty->fore_color = i;
+    }
+    else if ((*format)[0] == 'C' && (*format)[1] == 'b')
+    {
+        *format += 2;
+        
+        i = va_arg(*vararg, console_color);
+        
+        if (tty->supports_color)
+            tty->back_color = i;
+    }
     else if ((*format)[0] == '%')
     {
         *format += 1;
@@ -297,8 +315,6 @@ void tvprintf(tty_base* tty, const char* format, va_list vararg)
     char ch;
     char buf[256];
     
-    spinlock_acquire(&tty->lock);
-    
     while ((ch = *(format++)) != '\0')
     {
         if (ch == '%')
@@ -312,6 +328,4 @@ void tvprintf(tty_base* tty, const char* format, va_list vararg)
     }
     
     tty->flush(tty);
-    
-    spinlock_release(&tty->lock);
 }
