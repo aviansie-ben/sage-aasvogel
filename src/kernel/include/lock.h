@@ -9,6 +9,7 @@ typedef struct
 void spinlock_init(spinlock* lock);
 
 void spinlock_acquire(spinlock* lock);
+void spinlock_try_acquire(spinlock* lock);
 void spinlock_release(spinlock* lock);
 
 #endif

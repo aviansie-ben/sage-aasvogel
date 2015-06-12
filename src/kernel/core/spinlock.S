@@ -28,21 +28,21 @@ spinlock_acquire:
     
     mov eax, [ebp + 8]
     
-.Lretry:
+.La_retry:
     lock bts dword ptr [eax], 0 # Attempt to acquire the lock.
-    jnc .Lcleanup
+    jnc .La_cleanup
     
     # Wait until the lock appears to be free, then retry.
-.Lwait:
+.La_wait:
     pause # Tells the CPU that we're in a spinlock. Avoids problems when
           # hyperthreading is enabled.
     
     cmp dword ptr [eax], 0
-    jne .Lwait
+    jne .La_wait
     
-    jmp .Lretry
+    jmp .La_retry
     
-.Lcleanup:
+.La_cleanup:
     # Store the old value of the EFLAGS register in the spinlock to be restored
     # when spinlock_release is called. The carry flag will not be stored, and
     # will always be replaced with a 1, since that bit of the spinlock
@@ -55,6 +55,44 @@ spinlock_acquire:
     pop ebp
     ret
 .size spinlock_acquire, .-spinlock_acquire
+
+.globl spinlock_try_acquire
+.type spinlock_try_acquire, @function
+spinlock_try_acquire:
+    push ebp
+    mov ebp, esp
+    pushfd # Store the old EFLAGS register for later. This is used to restore
+           # the interrupt flag in spinlock_release.
+    
+    cli # A thread must not be interrupted while it is attempting to acquire or
+        # when it has acquired a spinlock.
+    
+    mov eax, [ebp + 8]
+    
+    lock bts dword ptr [eax], 0 # Attempt to acquire the lock.
+    jnc .Lta_cleanup
+    
+    # We have failed to acquire the lock, so give up.
+    popfd
+    mov esp, ebp
+    pop ebp
+    mov eax, 0
+    ret
+    
+.Lta_cleanup:
+    # Store the old value of the EFLAGS register in the spinlock to be restored
+    # when spinlock_release is called. The carry flag will not be stored, and
+    # will always be replaced with a 1, since that bit of the spinlock
+    # information is used for testing a lock.
+    mov ecx, [ebp - 4]
+    or ecx, 1
+    mov [eax], ecx
+    
+    mov esp, ebp
+    pop ebp
+    mov eax, 1
+    ret
+.size spinlock_try_acquire, .-spinlock_try_acquire
 
 .globl spinlock_release
 .type spinlock_release, @function
