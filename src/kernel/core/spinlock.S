@@ -1,5 +1,34 @@
 .intel_syntax noprefix
 
+.globl eflags_save
+.type eflags_save, @function
+eflags_save:
+    push ebp
+    mov ebp, esp
+    
+    pushfd
+    mov eax, [ebp - 4]
+    
+    mov esp, ebp
+    pop ebp
+    ret
+.size eflags_save, .-eflags_save
+
+.globl eflags_load
+.type eflags_load, @function
+eflags_load:
+    push ebp
+    mov ebp, esp
+    
+    mov eax, [ebp + 8]
+    push eax
+    popfd
+    
+    mov esp, ebp
+    pop ebp
+    ret
+.size eflags_load, .-eflags_load
+
 .globl spinlock_init
 .type spinlock_init, @function
 spinlock_init:
