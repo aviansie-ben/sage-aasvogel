@@ -12,6 +12,15 @@ void strcpy(char* dest, const char* src)
     *dest = '\0';
 }
 
+void strncpy(char* dest, const char* src, size_t n)
+{
+    while (*src != '\0' && n-- > 0)
+        *(dest++) = *(src++);
+    
+    while (n-- > 0)
+        *(dest++) = '\0';
+}
+
 void strcat(char* dest, const char* src)
 {
     while (*dest != '\0')

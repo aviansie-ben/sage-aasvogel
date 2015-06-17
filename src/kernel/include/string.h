@@ -4,6 +4,7 @@
 #include <typedef.h>
 
 extern void strcpy(char* dest, const char* src);
+extern void strncpy(char* dest, const char* src, size_t n);
 extern void strcat(char* dest, const char* src);
 extern size_t strlen(const char* s);
 
