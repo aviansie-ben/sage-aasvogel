@@ -58,6 +58,25 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
     hang();
 }
 
+void do_crash_interrupt(const char* msg, const char* file, const char* func, uint32 line, regs32_t* r)
+{
+    asm volatile ("cli");
+    
+    tty_switch_vc(&tty_virtual_consoles[0]);
+    
+    spinlock_acquire(&tty_virtual_consoles[0].base.lock);
+    tty_virtual_consoles[0].base.fore_color = CONSOLE_COLOR_WHITE;
+    tty_virtual_consoles[0].base.back_color = CONSOLE_COLOR_RED;
+    tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
+    tty_virtual_consoles[0].base.cursor_hidden = true;
+    spinlock_release(&tty_virtual_consoles[0].base.lock);
+    
+    tprintf(&tty_virtual_consoles[0].base, "Sage Aasvogel has crashed!\n  %s\n  Location: %s line %d\n  Function: %s\n\nStack Trace:\n", msg, file, line, func);
+    unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
+    
+    hang();
+}
+
 void do_crash_unhandled_isr(regs32_t* r)
 {
     asm volatile ("cli");
