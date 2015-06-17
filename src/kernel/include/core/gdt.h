@@ -7,6 +7,11 @@
 #define GDT_NUM_ENTRIES 10
 #define GDT_NUM_TSS_ENTRIES 1
 
+#define GDT_KERNEL_CODE 0x08
+#define GDT_KERNEL_DATA 0x10
+#define GDT_USER_CODE 0x18
+#define GDT_USER_DATA 0x20
+
 typedef struct
 {
     uint16 limit_low;
