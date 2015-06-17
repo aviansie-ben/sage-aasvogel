@@ -40,6 +40,7 @@ extern void idt_register_default_isr_handler(interrupt_handler handler);
 extern void idt_register_irq_handler(uint32 n, interrupt_handler handler);
 extern void idt_set_irq_enabled(uint32 n, bool enabled);
 
+void idt_set_ext_handler_flags(uint32 n, uint8 flags);
 extern void idt_register_ext_handler(uint32 n, interrupt_handler handler);
 
 extern void idt_flush(idt_pointer* ptr);

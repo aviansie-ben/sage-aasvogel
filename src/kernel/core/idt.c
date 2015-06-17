@@ -204,6 +204,12 @@ void idt_set_irq_enabled(uint32 n, bool enabled)
     set_pic_irq_masked((uint8)n, !enabled);
 }
 
+void idt_set_ext_handler_flags(uint32 n, uint8 flags)
+{
+    assert(n < IDT_NUM_EXT);
+    idt_entries[IDT_EXT_START + n].flags = flags;
+}
+
 void idt_register_ext_handler(uint32 n, interrupt_handler handler)
 {
     assert(n < IDT_NUM_EXT);
