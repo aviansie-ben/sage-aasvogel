@@ -62,18 +62,18 @@ static void remap_pic(uint8 offset_master, uint8 offset_slave)
     io_wait();
     
     // Send ICW2 to tell the PICs what IDT offsets they should use
-    outb(MASTER_PIC_COMMAND, offset_master);
-    outb(SLAVE_PIC_COMMAND, offset_slave);
+    outb(MASTER_PIC_DATA, offset_master);
+    outb(SLAVE_PIC_DATA, offset_slave);
     io_wait();
     
     // Send ICW3 to tell the master and slave PICs about each other
-    outb(MASTER_PIC_COMMAND, COMMAND_ICW3_MASTER);
-    outb(SLAVE_PIC_COMMAND, COMMAND_ICW3_SLAVE);
+    outb(MASTER_PIC_DATA, COMMAND_ICW3_MASTER);
+    outb(SLAVE_PIC_DATA, COMMAND_ICW3_SLAVE);
     io_wait();
     
     // Send ICW4 to tell the master and slave what mode they should operate in
-    outb(MASTER_PIC_COMMAND, COMMAND_ICW4);
-    outb(SLAVE_PIC_COMMAND, COMMAND_ICW4);
+    outb(MASTER_PIC_DATA, COMMAND_ICW4);
+    outb(SLAVE_PIC_DATA, COMMAND_ICW4);
     io_wait();
     
     // Restore the mask registers that were saved above
