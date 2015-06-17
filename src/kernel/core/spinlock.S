@@ -8,7 +8,6 @@ spinlock_init:
     
     mov eax, [ebp + 8]
     mov dword ptr [eax], 0
-    mov dword ptr [eax + 4], 0
     
     mov esp, ebp
     pop ebp
