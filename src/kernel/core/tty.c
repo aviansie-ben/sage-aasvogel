@@ -87,7 +87,7 @@ static void tty_vc_write(tty_base* base, char ch)
             tty->buffer[pos].back_color = base->back_color;
         }
         
-        tty->buffer_line++;
+        tty->buffer_line = (uint16)(tty->buffer_line + 1) % base->height;
     }
 }
 
