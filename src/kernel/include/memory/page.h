@@ -9,6 +9,8 @@
 #define PAGE_PHYSICAL_ADDRESS_MASK_64 0x7FFFFFFFFFFFF000u
 #define PAGE_PHYSICAL_ADDRESS_MASK_32 0xFFFFF000u
 
+typedef uint32 addr_v;
+
 enum pdpt_entry_flags
 {
     PDPT_ENTRY_PRESENT       = (1 << 0),
@@ -110,20 +112,20 @@ void kmem_page_context_create(page_context* c);
 void kmem_page_context_destroy(page_context* c);
 void kmem_page_context_switch(page_context* c);
 
-mem_block* kmem_page_global_alloc(uint32 virtual_address, uint64 page_flags, bool flush);
-mem_block* kmem_page_alloc(page_context* c, uint32 virtual_address, uint64 page_flags, bool flush);
+addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);
+addr_p kmem_page_alloc(page_context* c, addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);
 
-void kmem_page_global_free(uint32 virtual_address, bool flush);
-void kmem_page_free(page_context* c, uint32 virtual_address, bool flush);
+void kmem_page_global_free(addr_v virtual_address, bool flush);
+void kmem_page_free(page_context* c, addr_v virtual_address, bool flush);
 
-mem_block* kmem_page_get_mapping(page_context* c, uint32 virtual_address);
-void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, mem_block* block);
-void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush);
+addr_p kmem_page_get_mapping(page_context* c, addr_v virtual_address);
+void kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
+void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush);
 
-void kmem_page_global_map(uint32 virtual_address, uint64 flags, bool flush, mem_block* block);
-void kmem_page_global_unmap(uint32 virtual_address, bool flush);
+void kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
+void kmem_page_global_unmap(addr_v virtual_address, bool flush);
 
-void kmem_page_flush_one(uint32 virtual_address);
+void kmem_page_flush_one(addr_v virtual_address);
 void kmem_page_flush_all(void);
 
 void kmem_enable_write_protect(void);

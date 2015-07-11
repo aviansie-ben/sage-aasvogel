@@ -153,6 +153,8 @@ static void kmem_page_init_legacy(const boot_param* param)
 
 void kmem_page_init(const boot_param* param)
 {
+    addr_v addr;
+    addr_v addr_end;
     uint32 cr4;
     
     assert(!init_done);
@@ -174,9 +176,15 @@ void kmem_page_init(const boot_param* param)
     else
         kmem_page_init_legacy(param);
     
-    // Finalize the early memory manager. Any space it has allocated will be
-    // reserved in physical memory and mapped into the new page context.
-    kmem_early_finalize();
+    // We need to finalize the early memory manager so that we can map the
+    // memory it has allocated into the new page context.
+    kmem_early_finalize(&addr, &addr_end);
+    
+    while (addr < addr_end)
+    {
+        kmem_page_map(&kernel_page_context, addr, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, false, addr - 0xC0000000);
+        addr += 0x1000;
+    }
     
     // Now that we're done setting up the new page context, we can switch into
     // it.
@@ -189,49 +197,49 @@ void kmem_page_context_switch(page_context* c)
     asm volatile ("mov %0, %%cr3" : : "r" (c->physical_address));
 }
 
-mem_block* kmem_page_global_alloc(uint32 virtual_address, uint64 page_flags, bool flush)
+addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush)
 {
-    mem_block* b = kmem_block_alloc(true);
+    addr_p frame = kmem_frame_alloc(alloc_flags);
     
-    if (b != NULL)
-        kmem_page_global_map(virtual_address, page_flags, flush, b);
+    if (frame != FRAME_NULL)
+        kmem_page_global_map(virtual_address, page_flags, flush, frame);
     
-    return b;
+    return frame;
 }
 
-mem_block* kmem_page_alloc(page_context* c, uint32 virtual_address, uint64 page_flags, bool flush)
+addr_p kmem_page_alloc(page_context* c, addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush)
 {
-    mem_block* b = kmem_block_alloc(false);
+    addr_p frame = kmem_frame_alloc(alloc_flags);
     
-    if (b != NULL)
-        kmem_page_map(c, virtual_address, page_flags, flush, b);
+    if (frame != FRAME_NULL)
+        kmem_page_map(c, virtual_address, page_flags, flush, frame);
     
-    return b;
+    return frame;
 }
 
-void kmem_page_global_free(uint32 virtual_address, bool flush)
+void kmem_page_global_free(addr_v virtual_address, bool flush)
 {
-    mem_block* b = kmem_page_get_mapping(&kernel_page_context, virtual_address);
+    addr_p frame = kmem_page_get_mapping(&kernel_page_context, virtual_address);
     
-    if (b != NULL)
+    if (frame != FRAME_NULL)
     {
         kmem_page_global_unmap(virtual_address, flush);
-        kmem_block_free(b);
+        kmem_frame_free(frame);
     }
 }
 
-void kmem_page_free(page_context* c, uint32 virtual_address, bool flush)
+void kmem_page_free(page_context* c, addr_v virtual_address, bool flush)
 {
-    mem_block* b = kmem_page_get_mapping(c, virtual_address);
+    addr_p frame = kmem_page_get_mapping(c, virtual_address);
     
-    if (b != NULL)
+    if (frame != FRAME_NULL)
     {
         kmem_page_unmap(c, virtual_address, flush);
-        kmem_block_free(b);
+        kmem_frame_free(frame);
     }
 }
 
-static mem_block* kmem_page_get_mapping_pae(page_context* c, uint32 virtual_address)
+static addr_p kmem_page_get_mapping_pae(page_context* c, addr_v virtual_address)
 {
     uint32 pto, po;
     page_table_pae* t;
@@ -242,12 +250,12 @@ static mem_block* kmem_page_get_mapping_pae(page_context* c, uint32 virtual_addr
     t = c->pae_pdpt->page_table_virt[pto];
     
     if (t == NULL || (t->page_phys[po] & PT_ENTRY_PRESENT) == 0)
-        return NULL;
+        return FRAME_NULL;
     else
-        return kmem_block_find(t->page_phys[po] & PAGE_PHYSICAL_ADDRESS_MASK_64);
+        return t->page_phys[po] & PAGE_PHYSICAL_ADDRESS_MASK_64;
 }
 
-static mem_block* kmem_page_get_mapping_legacy(page_context* c, uint32 virtual_address)
+static addr_p kmem_page_get_mapping_legacy(page_context* c, addr_v virtual_address)
 {
     uint32 pto, po;
     page_table_legacy* t;
@@ -258,24 +266,24 @@ static mem_block* kmem_page_get_mapping_legacy(page_context* c, uint32 virtual_a
     t = c->legacy_dir->page_table_virt[pto];
     
     if (t == NULL || (t->page_phys[po] & PT_ENTRY_PRESENT) == 0)
-        return NULL;
+        return FRAME_NULL;
     else
-        return kmem_block_find(t->page_phys[po] & PAGE_PHYSICAL_ADDRESS_MASK_64);
+        return t->page_phys[po] & PAGE_PHYSICAL_ADDRESS_MASK_64;
 }
 
-mem_block* kmem_page_get_mapping(page_context* c, uint32 virtual_address)
+addr_p kmem_page_get_mapping(page_context* c, addr_v virtual_address)
 {
-    mem_block* b;
+    addr_p frame;
     
     spinlock_acquire(&c->lock);
     
     if (use_pae)
-        b = kmem_page_get_mapping_pae(c, virtual_address);
+        frame = kmem_page_get_mapping_pae(c, virtual_address);
     else
-        b = kmem_page_get_mapping_legacy(c, virtual_address);
+        frame = kmem_page_get_mapping_legacy(c, virtual_address);
     
     spinlock_release(&c->lock);
-    return b;
+    return frame;
 }
 
 static page_table_pae* kmem_page_table_create_pae(page_context* c, uint32 table_number, uint64 flags)
@@ -314,7 +322,7 @@ static page_table_pae* kmem_page_table_create_pae(page_context* c, uint32 table_
     return pt;
 }
 
-static void kmem_page_map_pae(page_context* c, uint32 virtual_address, uint64 flags, uint64 physical_address)
+static void kmem_page_map_pae(page_context* c, addr_v virtual_address, uint64 flags, addr_p physical_address)
 {
     page_table_pae* pt;
     uint32 pto, po;
@@ -355,7 +363,7 @@ static page_table_legacy* kmem_page_table_create_legacy(page_context* c, uint32 
     return pt;
 }
 
-static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32 flags, uint32 physical_address)
+static void kmem_page_map_legacy(page_context* c, addr_v virtual_address, uint32 flags, uint32 physical_address)
 {
     page_table_legacy* pt;
     uint32 pto, po;
@@ -377,17 +385,17 @@ static void kmem_page_map_legacy(page_context* c, uint32 virtual_address, uint32
     pt->page_phys[po] = physical_address | flags | PT_ENTRY_PRESENT;
 }
 
-void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
+void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool flush, addr_p frame)
 {
     assert(c != NULL);
-    assert(block != NULL);
+    assert(frame != FRAME_NULL);
     
     spinlock_acquire(&c->lock);
     
     if (use_pae)
-        kmem_page_map_pae(c, virtual_address, flags, kmem_block_address(block));
+        kmem_page_map_pae(c, virtual_address, flags, frame);
     else
-        kmem_page_map_legacy(c, virtual_address, (uint32)flags, (uint32)kmem_block_address(block));
+        kmem_page_map_legacy(c, virtual_address, (uint32)flags, (uint32)frame);
     
     if (flush)
         kmem_page_flush_one(virtual_address);
@@ -395,7 +403,7 @@ void kmem_page_map(page_context* c, uint32 virtual_address, uint64 flags, bool f
     spinlock_release(&c->lock);
 }
 
-static void kmem_page_unmap_pae(page_context* c, uint32 virtual_address)
+static void kmem_page_unmap_pae(page_context* c, addr_v virtual_address)
 {
     page_table_pae* pt;
     uint32 pto, po;
@@ -411,7 +419,7 @@ static void kmem_page_unmap_pae(page_context* c, uint32 virtual_address)
         pt->page_phys[po] = 0;
 }
 
-static void kmem_page_unmap_legacy(page_context* c, uint32 virtual_address)
+static void kmem_page_unmap_legacy(page_context* c, addr_v virtual_address)
 {
     page_table_legacy* pt;
     uint32 pto, po;
@@ -427,7 +435,7 @@ static void kmem_page_unmap_legacy(page_context* c, uint32 virtual_address)
         pt->page_phys[po] = 0;
 }
 
-void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush)
+void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush)
 {
     spinlock_acquire(&c->lock);
     
@@ -442,11 +450,11 @@ void kmem_page_unmap(page_context* c, uint32 virtual_address, bool flush)
     spinlock_release(&c->lock);
 }
 
-static void kmem_page_global_map_pae(uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
+static void kmem_page_global_map_pae(addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
 {
     spinlock_acquire(&kernel_page_context.lock);
     
-    kmem_page_map_pae(&kernel_page_context, virtual_address, flags, kmem_block_address(block));
+    kmem_page_map_pae(&kernel_page_context, virtual_address, flags, frame);
     
     if (flush)
         kmem_page_flush_one(virtual_address);
@@ -454,23 +462,23 @@ static void kmem_page_global_map_pae(uint32 virtual_address, uint64 flags, bool 
     spinlock_release(&kernel_page_context.lock);
 }
 
-static void kmem_page_global_map_legacy(uint32 virtual_address, uint32 flags, bool flush, mem_block* block)
+static void kmem_page_global_map_legacy(addr_v virtual_address, uint32 flags, bool flush, addr_p frame)
 {
     crash("Global page mapping for legacy paging is not yet supported!");
 }
 
-void kmem_page_global_map(uint32 virtual_address, uint64 flags, bool flush, mem_block* block)
+void kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
 {
     assert(virtual_address >= KERNEL_VIRTUAL_ADDRESS_BEGIN);
-    assert(block != NULL);
+    assert(frame != FRAME_NULL);
     
     if (use_pae)
-        kmem_page_global_map_pae(virtual_address, flags, flush, block);
+        kmem_page_global_map_pae(virtual_address, flags, flush, frame);
     else
-        kmem_page_global_map_legacy(virtual_address, (uint32) flags, flush, block);
+        kmem_page_global_map_legacy(virtual_address, (uint32) flags, flush, frame);
 }
 
-static void kmem_page_global_unmap_pae(uint32 virtual_address, bool flush)
+static void kmem_page_global_unmap_pae(addr_v virtual_address, bool flush)
 {
     spinlock_acquire(&kernel_page_context.lock);
     

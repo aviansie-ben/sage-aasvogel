@@ -34,13 +34,13 @@ static void kernel_main2(const boot_param* param)
     gdt_init();
     idt_init();
     
-    // Initialize the memory manager
-    // TODO: Fix memory management
-    /* kmem_phys_init(param);
-    kmem_page_init(param); */
-    
     // Initialize the CPU scheduler
+    // TODO: Move this to after memory manager initialization
     sched_init(param);
+    
+    // Initialize the memory manager
+    kmem_page_init(param);
+    kmem_phys_init(param);
     
     hang();
 }

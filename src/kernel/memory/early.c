@@ -99,21 +99,14 @@ void kmem_early_init(multiboot_info* multiboot)
     init_done = true;
 }
 
-void kmem_early_finalize(void)
+void kmem_early_finalize(addr_v* alloc_begin, addr_v* alloc_end)
 {
-    uint32 addr;
-    
-    assert(init_done && !final_done);
-    
-    // Map all virtual addresses that were allocated
-    for (addr = min_alloc; addr < next_alloc; addr += 0x1000)
-        kmem_page_map(&kernel_page_context, KERNEL_VIRTUAL_ADDRESS_BEGIN + addr, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL, false, kmem_block_find(addr));
-    
-    // Reserve all physical memory that has been allocated (since page mapping
-    // may result in more allocations, we must do this after finishing that)
-    kmem_block_reserve(kmem_block_find(min_alloc), kmem_block_find(next_alloc - 1), MEM_BLOCK_LOCKED);
+    assert(init_done);
     
     // Once we've finalized, the early memory manager can no longer allocate any
     // new memory.
     final_done = true;
+    
+    *alloc_begin = (addr_v)(min_alloc + 0xC0000000);
+    *alloc_end = (addr_v)(next_alloc + 0xC0000000);
 }
