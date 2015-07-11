@@ -24,45 +24,6 @@ static boot_param gparam;
 
 void kernel_main(multiboot_info* multiboot);
 
-static void sched_test_2(void* id)
-{
-    int i;
-    int j;
-    
-    for (i = 0; i < 3; i++)
-    {
-        for (j = 0; j < 3000000; j++) ;
-        
-        spinlock_acquire(&tty_virtual_consoles[1].base.lock);
-        tprintf(&tty_virtual_consoles[1].base, "Hello %d from thread %d! (%ld)\n", i + 1, (int)id + 1, sched_thread_current()->tid);
-        klog(KLOG_LEVEL_DEBUG, "Hello %d from thread %d! (%ld)\n", i + 1, (int)id + 1, sched_thread_current()->tid);
-        spinlock_release(&tty_virtual_consoles[1].base.lock);
-    }
-    
-    spinlock_acquire(&sched_process_current()->lock);
-    sched_thread_destroy(sched_thread_current());
-    spinlock_release(&sched_process_current()->lock);
-    sched_yield();
-}
-
-static void sched_test_1(void)
-{
-    sched_process* p = sched_process_current();
-    sched_thread* t;
-    
-    tty_switch_vc(&tty_virtual_consoles[1]);
-    
-    spinlock_acquire(&p->lock);
-    for (int i = 0; i < 10; i++)
-    {
-        sched_thread_create(p, sched_test_2, (void*)i, &t);
-    }
-    sched_thread_current()->status = STS_DEAD;
-    spinlock_release(&p->lock);
-    
-    sched_yield();
-}
-
 static void kernel_main2(const boot_param* param)
 {
     // Run CPUID checks
@@ -80,7 +41,6 @@ static void kernel_main2(const boot_param* param)
     
     // Initialize the CPU scheduler
     sched_init(param);
-    sched_test_1();
     
     hang();
 }
