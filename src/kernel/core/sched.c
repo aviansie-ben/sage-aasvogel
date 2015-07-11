@@ -463,7 +463,7 @@ void sched_switch_thread(sched_thread* thread, regs32_t* r)
         return;
     
     assert(thread->status == STS_READY);
-    assert(current_thread->registers_dirty || current_thread->status == STS_DEAD);
+    assert(current_thread == NULL || current_thread->registers_dirty || current_thread->status == STS_DEAD);
     assert(thread->stack_low == NULL || (thread->registers.esp <= (uint32)thread->stack_high && thread->registers.esp >= (uint32)thread->stack_low));
     
 #ifdef SCHED_SWITCH_DEBUG
