@@ -226,18 +226,59 @@ void tty_switch_vc(tty_vc* tty)
     spinlock_release(&tty->base.lock);
 }
 
+static void tty_write_field(tty_base* tty, const char* msg, uint32 min_length, bool zero_pad, bool left_justify)
+{
+    uint32 length = strlen(msg);
+    
+    while (!left_justify && length < min_length)
+    {
+        length++;
+        tty->write(tty, (zero_pad) ? '0' : ' ');
+    }
+    
+    tty_write(tty, msg);
+    
+    while (left_justify && length < min_length)
+    {
+        length++;
+        tty->write(tty, (zero_pad) ? '0' : ' ');
+    }
+}
+
 static void print_formatted(tty_base* tty, const char** format, char* buf, va_list* vararg)
 {
     const char* s;
     int i;
     long long l;
     
+    uint32 min_length = 0;
+    bool zero_pad = false;
+    bool left_justify = false;
+    
+    if ((*format)[0] == '-')
+    {
+        *format += 1;
+        left_justify = true;
+    }
+    
+    if ((*format)[0] == '0')
+    {
+        *format += 1;
+        zero_pad = true;
+    }
+    
+    while ((*format)[0] >= '0' && (*format)[0] <= '9')
+    {
+        min_length = (min_length * 10) + (uint32)((*format)[0] - '0');
+        *format += 1;
+    }
+    
     if ((*format)[0] == 's')
     {
         *format += 1;
         
         s = va_arg(*vararg, const char*);
-        tty_write(tty, s);
+        tty_write_field(tty, s, min_length, zero_pad, left_justify);
     }
     else if ((*format)[0] == 'd')
     {
@@ -245,7 +286,7 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         
         i = va_arg(*vararg, int);
         itoa(i, buf, 10);
-        tty_write(tty, buf);
+        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
     }
     else if ((*format)[0] == 'x')
     {
@@ -253,7 +294,7 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         
         i = va_arg(*vararg, int);
         itoa(i, buf, 16);
-        tty_write(tty, buf);
+        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
     }
     else if ((*format)[0] == 'l' && (*format)[1] == 'd')
     {
@@ -261,7 +302,7 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 10);
-        tty_write(tty, buf);
+        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
     }
     else if ((*format)[0] == 'l' && (*format)[1] == 'x')
     {
@@ -269,7 +310,7 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 16);
-        tty_write(tty, buf);
+        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
     }
     else if ((*format)[0] == 'C' && (*format)[1] == 'f')
     {
