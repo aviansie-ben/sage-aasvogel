@@ -26,28 +26,12 @@ static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
     mempool_small_part* p;
     mempool_fixed_free_slot* s;
     
-    size_t pframes_n;
-    addr_p pframes[pool->frames_per_part];
     size_t i;
     
-    pframes_n = kmem_frame_alloc_many(pframes, pool->frames_per_part, flags);
-    
-    if (pframes_n != pool->frames_per_part)
-    {
-        kmem_frame_free_many(pframes, pframes_n);
-        return;
-    }
-    
-    p = kmem_virt_alloc(pool->frames_per_part);
+    p = kmem_pages_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, pool->frames_per_part);
     
     if (p == NULL)
-    {
-        kmem_frame_free_many(pframes, pframes_n);
         return;
-    }
-    
-    for (i = 0; i < pframes_n; i++)
-        kmem_page_global_map((addr_v)p + FRAME_SIZE * i, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, pframes[i]);
     
     p->pool = pool;
     p->next_part = pool->parts_empty;

@@ -4,6 +4,7 @@
 #include <memory/early.h>
 #include <memory/phys.h>
 #include <memory/page.h>
+#include <memory/virt.h>
 #include <assert.h>
 
 extern const void _ld_text_begin;
@@ -200,6 +201,35 @@ void kmem_page_context_switch(page_context* c)
 {
     active_page_context = c;
     asm volatile ("mov %0, %%cr3" : : "r" (c->physical_address));
+}
+
+void* kmem_pages_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, uint32 num_pages)
+{
+    addr_v addr;
+    addr_p frames[num_pages];
+    size_t frames_n;
+    size_t i;
+    
+    frames_n = kmem_frame_alloc_many(frames, num_pages, alloc_flags);
+    
+    if (frames_n < num_pages)
+    {
+        kmem_frame_free_many(frames, frames_n);
+        return NULL;
+    }
+    
+    addr = (addr_v) kmem_virt_alloc(num_pages);
+    
+    if (addr == 0)
+    {
+        kmem_frame_free_many(frames, num_pages);
+        return NULL;
+    }
+    
+    for (i = 0; i < num_pages; i++)
+        kmem_page_global_map(addr + (i * FRAME_SIZE), page_flags, true, frames[i]);
+    
+    return (void*)addr;
 }
 
 addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush)
