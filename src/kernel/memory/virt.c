@@ -191,8 +191,8 @@ static void _free_region(addr_v addr, uint32 size)
         first_fr_addr->address = addr;
         first_fr_addr->size += size;
         
-        _region_remove_size(r->next_addr);
-        _region_insert_size(r->next_addr);
+        _region_remove_size(first_fr_addr);
+        _region_insert_size(first_fr_addr);
     }
     else
     {
