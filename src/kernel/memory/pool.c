@@ -53,9 +53,6 @@ static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
 
 static void _small_pool_part_free(mempool_small* pool, mempool_small_part* part, mempool_small_part* prev_part)
 {
-    addr_p pframes[pool->frames_per_part];
-    size_t i;
-    
     if (part->num_free != (pool->frames_per_part * FRAME_SIZE - sizeof(mempool_small_part) - pool->part_first_offset) / pool->obj_size)
         crash("Attempt to free a pool part which is not empty!");
     
@@ -65,14 +62,7 @@ static void _small_pool_part_free(mempool_small* pool, mempool_small_part* part,
     pool->num_total -= part->num_free;
     pool->num_free -= part->num_free;
     
-    for (i = 0; i < pool->frames_per_part; i++)
-    {
-        pframes[i] = kmem_page_get_mapping(&kernel_page_context, (addr_v)part + i * FRAME_SIZE);
-        kmem_page_global_unmap((addr_v)part + i * FRAME_SIZE, true);
-    }
-    
-    kmem_frame_free_many(pframes, pool->frames_per_part);
-    kmem_virt_free(part, pool->frames_per_part);
+    kmem_pages_global_free(part, pool->frames_per_part);
 }
 
 static bool _small_pool_part_is_allocated(mempool_small_part* part, void* obj)

@@ -113,6 +113,7 @@ void kmem_page_context_destroy(page_context* c);
 void kmem_page_context_switch(page_context* c);
 
 void* kmem_pages_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, uint32 num_pages);
+void kmem_pages_global_free(void* addr, uint32 num_pages);
 
 addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);
 addr_p kmem_page_alloc(page_context* c, addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);

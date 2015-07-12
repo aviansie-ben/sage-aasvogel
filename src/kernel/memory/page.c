@@ -232,6 +232,25 @@ void* kmem_pages_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, 
     return (void*)addr;
 }
 
+void kmem_pages_global_free(void* addr, uint32 num_pages)
+{
+    addr_p frame;
+    size_t i;
+    
+    for (i = 0; i < num_pages; i++)
+    {
+        frame = kmem_page_get_mapping(&kernel_page_context, (addr_v)addr + (i * FRAME_SIZE));
+        
+        if (frame == FRAME_NULL)
+            crash("Attempt to free a page that wasn't allocated!");
+        
+        kmem_page_global_unmap((addr_v)addr + (i * FRAME_SIZE), true);
+        kmem_frame_free(frame);
+    }
+    
+    kmem_virt_free(addr, num_pages);
+}
+
 addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush)
 {
     addr_p frame = kmem_frame_alloc(alloc_flags);
