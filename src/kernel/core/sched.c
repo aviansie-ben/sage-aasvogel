@@ -67,10 +67,11 @@ static sched_thread* alloc_init_thread(sched_process* p)
     t->in_queue = NULL;
     
     t->next_in_process = (p == NULL) ? NULL : p->first_thread;
-    p->first_thread = t;
     
     if (p != NULL)
     {
+        p->first_thread = t;
+        
         spinlock_acquire(&p->thread_run_queue.lock);
         sched_thread_enqueue(&p->thread_run_queue, t);
         spinlock_release(&p->thread_run_queue.lock);
