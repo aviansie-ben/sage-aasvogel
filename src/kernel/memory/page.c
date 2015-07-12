@@ -1,5 +1,6 @@
 #include <core/cpuid.h>
 #include <core/msr.h>
+#include <core/idt.h>
 #include <memory/early.h>
 #include <memory/phys.h>
 #include <memory/page.h>
@@ -185,6 +186,10 @@ void kmem_page_init(const boot_param* param)
         kmem_page_map(&kernel_page_context, addr, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, false, addr - 0xC0000000);
         addr += 0x1000;
     }
+    
+    // Until more sophisticated memory mechanisms are available, set the page
+    // fault handler to simply crash the system.
+    idt_register_isr_handler(0xe, do_crash_pagefault);
     
     // Now that we're done setting up the new page context, we can switch into
     // it.

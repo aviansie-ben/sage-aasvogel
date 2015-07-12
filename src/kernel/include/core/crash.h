@@ -9,6 +9,7 @@
 
 extern void do_crash(const char* msg, const char* file, const char* func, uint32 line) __attribute__((noreturn));
 extern void do_crash_interrupt(const char* msg, const char* file, const char* func, uint32 line, regs32_t* r);
+extern void do_crash_pagefault(regs32_t* r);
 extern void do_crash_unhandled_isr(regs32_t* r);
 
 #endif
