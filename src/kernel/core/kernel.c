@@ -17,6 +17,7 @@
 #include <memory/early.h>
 #include <memory/phys.h>
 #include <memory/page.h>
+#include <memory/virt.h>
 
 #include <core/sched.h>
 
@@ -41,6 +42,7 @@ static void kernel_main2(const boot_param* param)
     // Initialize the memory manager
     kmem_page_init(param);
     kmem_phys_init(param);
+    kmem_virt_init(param);
     
     hang();
 }
