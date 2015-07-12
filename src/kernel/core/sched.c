@@ -1,5 +1,5 @@
 #include <core/sched.h>
-#include <memory/early.h>
+#include <memory/pool.h>
 #include <string.h>
 #include <assert.h>
 #include <core/gdt.h>
@@ -37,6 +37,9 @@ static sched_thread* idle_thread;
 
 static sched_thread_queue sleep_queue;
 
+static mempool_small process_pool;
+static mempool_small thread_pool;
+
 void sched_idle(void);
 
 static void init_registers(regs32_saved_t* r, uint32 stack, uint32 entry)
@@ -53,7 +56,7 @@ static void init_registers(regs32_saved_t* r, uint32 stack, uint32 entry)
 
 static sched_thread* alloc_init_thread(sched_process* p)
 {
-    sched_thread* t = kmalloc_early(sizeof(sched_thread), __alignof__(sched_thread), NULL); // TODO: Replace with actual allocator
+    sched_thread* t = kmem_pool_small_alloc(&thread_pool, 0);
     
     if (t == NULL)
         return NULL;
@@ -92,7 +95,7 @@ static sched_thread* alloc_init_thread(sched_process* p)
 
 static sched_process* alloc_init_process(const char* name)
 {
-    sched_process* p = kmalloc_early(sizeof(sched_process), __alignof__(sched_process), NULL); // TODO: Replace with actual allocator
+    sched_process* p = kmem_pool_small_alloc(&process_pool, 0);
     
     if (p == NULL)
         return NULL;
@@ -193,6 +196,9 @@ void sched_init(const boot_param* param)
     spinlock_init(&next_pid_spinlock);
     spinlock_init(&first_process_spinlock);
     
+    kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process));
+    kmem_pool_small_init(&thread_pool, "sched_thread pool", sizeof(sched_thread), __alignof__(sched_thread));
+    
     sched_process_queue_init(&process_run_queue);
     sched_thread_queue_init(&sleep_queue);
     
@@ -251,7 +257,7 @@ void sched_process_destroy(sched_process* process)
 
 int sched_thread_create(sched_process* process, sched_thread_function func, void* arg, sched_thread** thread)
 {
-    void** stack_low = kmalloc_early(THREAD_STACK_SIZE, __alignof__(void*), NULL);
+    void** stack_low = kmem_pages_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, 0, THREAD_STACK_SIZE / FRAME_SIZE);
     void** stack_high = stack_low + THREAD_STACK_SIZE / sizeof(void*);
     
     if (stack_low == NULL)
@@ -267,7 +273,7 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     if (t == NULL)
     {
         spinlock_release(&process->lock);
-        // TODO Free allocated stack space
+        kmem_pages_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
         return -1; // TODO Come up with proper error codes
     }
     
@@ -284,7 +290,7 @@ void sched_thread_destroy(sched_thread* thread)
     if (thread->in_queue != NULL)
         sched_thread_force_dequeue(thread);
     
-    // TODO Free allocated stack space
+    kmem_pages_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
     
     if (thread->process->first_thread == thread)
     {
@@ -303,7 +309,7 @@ void sched_thread_destroy(sched_thread* thread)
     thread->status = STS_DEAD;
     klog(KLOG_LEVEL_DEBUG, "Destroyed thread %ld under process %ld (%s)\n", thread->tid, thread->process->pid, thread->process->name);
     
-    // TODO Free thread block
+    kmem_pool_small_free(&thread_pool, thread);
 }
 
 void sched_thread_queue_init(sched_thread_queue* queue)
