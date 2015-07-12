@@ -290,7 +290,7 @@ void sched_thread_destroy(sched_thread* thread)
     if (thread->in_queue != NULL)
         sched_thread_force_dequeue(thread);
     
-    kmem_pages_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
+    kmem_pages_global_free(thread->stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
     
     if (thread->process->first_thread == thread)
     {
