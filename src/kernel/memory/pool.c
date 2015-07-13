@@ -28,7 +28,7 @@ static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
     
     size_t i;
     
-    p = kmem_pages_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, pool->frames_per_part);
+    p = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, pool->frames_per_part);
     
     if (p == NULL)
         return;
@@ -62,7 +62,7 @@ static void _small_pool_part_free(mempool_small* pool, mempool_small_part* part,
     pool->num_total -= part->num_free;
     pool->num_free -= part->num_free;
     
-    kmem_pages_global_free(part, pool->frames_per_part);
+    kmem_page_global_free(part, pool->frames_per_part);
 }
 
 static bool _small_pool_part_is_allocated(mempool_small_part* part, void* obj)

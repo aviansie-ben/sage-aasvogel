@@ -228,19 +228,9 @@ static void _free_region(addr_v addr, uint32 size)
     }
 }
 
-static addr_v _early_alloc_end(void)
-{
-    addr_v alloc_begin;
-    addr_v alloc_end;
-    
-    kmem_early_finalize(&alloc_begin, &alloc_end);
-    
-    return alloc_end;
-}
-
 void kmem_virt_init(const boot_param* param)
 {
-    addr_v alloc_end = _early_alloc_end();
+    addr_v alloc_end = kmem_page_resv_end;
     
     _free_region(alloc_end, -alloc_end / FRAME_SIZE);
     _free_region((addr_v) &_ld_setup_begin + 0xC0000000, (((addr_v) &_ld_setup_end) - ((addr_v) &_ld_setup_begin)) / FRAME_SIZE);

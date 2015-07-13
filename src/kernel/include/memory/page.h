@@ -52,8 +52,6 @@ enum pt_entry_flags
 struct page_context;
 
 struct page_dir_ptr_tab;
-struct page_dir_pae;
-struct page_table_pae;
 
 struct page_dir_legacy;
 struct page_table_legacy;
@@ -74,24 +72,6 @@ typedef struct page_context
     struct page_context* prev;
 } page_context;
 
-typedef struct page_dir_ptr_tab
-{
-    uint64 page_dir_phys[4];
-    
-    struct page_dir_pae* page_dir_virt[4];
-    struct page_table_pae* page_table_virt[2048];
-} page_dir_ptr_tab __attribute__((aligned(0x20)));
-
-typedef struct page_dir_pae
-{
-    uint64 page_table_phys[512];
-} page_dir_pae __attribute__((aligned(0x1000)));
-
-typedef struct page_table_pae
-{
-    uint64 page_phys[512];
-} page_table_pae __attribute__((aligned(0x1000)));
-
 typedef struct page_dir_legacy
 {
     uint32 page_table_phys[1024];
@@ -106,29 +86,29 @@ typedef struct page_table_legacy
 extern page_context kernel_page_context;
 extern page_context* active_page_context;
 
-void kmem_page_init(const boot_param* param);
+extern bool kmem_page_pae_enabled;
+extern bool kmem_page_pge_enabled;
+extern addr_v kmem_page_resv_end __hidden;
 
-void kmem_page_context_create(page_context* c);
+void kmem_page_init(const boot_param* param) __hidden;
+
+bool kmem_page_context_create(page_context* c);
 void kmem_page_context_destroy(page_context* c);
 void kmem_page_context_switch(page_context* c);
 
-void* kmem_pages_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, uint32 num_pages);
-void kmem_pages_global_free(void* addr, uint32 num_pages);
+void* kmem_page_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, uint32 num_pages);
+void kmem_page_global_free(void* addr, uint32 num_pages);
 
-addr_p kmem_page_global_alloc(addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);
-addr_p kmem_page_alloc(page_context* c, addr_v virtual_address, uint64 page_flags, frame_alloc_flags alloc_flags, bool flush);
-
-void kmem_page_global_free(addr_v virtual_address, bool flush);
-void kmem_page_free(page_context* c, addr_v virtual_address, bool flush);
-
-addr_p kmem_page_get_mapping(page_context* c, addr_v virtual_address);
-void kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
+bool kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags);
+bool kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
 void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush);
 
-void kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
+bool kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags);
+bool kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame);
 void kmem_page_global_unmap(addr_v virtual_address, bool flush);
 
 void kmem_page_flush_one(addr_v virtual_address);
+void kmem_page_flush_region(addr_v virtual_address, uint32 num_pages);
 void kmem_page_flush_all(void);
 
 void kmem_enable_write_protect(void);

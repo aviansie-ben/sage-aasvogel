@@ -39,7 +39,10 @@ static void _push_free_frame(addr_p frame)
     }
     else
     {
-        addr_p old_free_stack = kmem_page_get_mapping(&kernel_page_context, (addr_v)&free_stack);
+        addr_p old_free_stack;
+        if (!kmem_page_get(&kernel_page_context, (addr_v)&free_stack, &old_free_stack, NULL))
+            crash("Free frame stack broken");
+        
         kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame);
         
         free_stack_top = 0;
@@ -62,8 +65,10 @@ static addr_p _pop_free_frame(void)
     }
     else if (free_stack.next_stack_frame != FRAME_NULL)
     {
+        if (!kmem_page_get(&kernel_page_context, (addr_v)&free_stack, &frame, NULL))
+            crash("Free frame stack broken");
+        
         free_stack_top = sizeof(free_stack.free_frames) / sizeof(*free_stack.free_frames);
-        frame = kmem_page_get_mapping(&kernel_page_context, (addr_v)&free_stack);
         kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, free_stack.next_stack_frame);
         
         kmem_free_frames--;
@@ -121,19 +126,9 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
     }
 }
 
-static addr_p _early_alloc_end(void)
-{
-    addr_v alloc_begin;
-    addr_v alloc_end;
-    
-    kmem_early_finalize(&alloc_begin, &alloc_end);
-    
-    return (addr_p) (alloc_end - 0xC0000000);
-}
-
 static void _push_unallocated(const boot_param* param)
 {
-    addr_p alloc_end = _early_alloc_end();
+    addr_p alloc_end = (addr_p)kmem_early_next_alloc;
     
     multiboot_mmap_entry* mmap = (multiboot_mmap_entry*) (param->multiboot->mmap_addr + 0xC0000000);
     multiboot_mmap_entry* mmap_end = (multiboot_mmap_entry*) (param->multiboot->mmap_addr + 0xC0000000 + param->multiboot->mmap_length);

@@ -5,7 +5,10 @@
 #include <core/bootparam.h>
 
 #define FRAME_NULL 0xdeaddeaddeaddeadu
-#define FRAME_SIZE 0x1000
+
+#define FRAME_SHIFT 12
+#define FRAME_SIZE (1 << FRAME_SHIFT)
+#define FRAME_MASK (FRAME_SIZE - 1)
 
 typedef uint64 addr_p;
 

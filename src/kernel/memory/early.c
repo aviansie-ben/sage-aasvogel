@@ -9,8 +9,8 @@
 static bool init_done = false;
 static bool final_done = false;
 
-static uint32 next_alloc;
-static uint32 min_alloc;
+addr_v kmem_early_next_alloc;
+addr_v kmem_early_min_alloc;
 
 extern const void _ld_kernel_end;
 
@@ -29,15 +29,15 @@ void* kmalloc_early(size_t size, size_t align, uint32* physical_address)
     assert(init_done && !final_done);
     assert(verify_mask(align_mask));
     
-    r = next_alloc;
+    r = kmem_early_next_alloc;
     if ((r & align_mask) != 0x0)
     {
         r |= align_mask;
         r += 1;
     }
     
-    assert(r >= next_alloc && (r & align_mask) == 0x0);
-    next_alloc = r + size;
+    assert(r >= kmem_early_next_alloc && (r & align_mask) == 0x0);
+    kmem_early_next_alloc = r + size;
     
     if (physical_address != NULL)
         *physical_address = r;
@@ -47,8 +47,8 @@ void* kmalloc_early(size_t size, size_t align, uint32* physical_address)
 
 static inline void ensure_min_alloc_gte(uint32 addr)
 {
-    if (min_alloc < addr)
-        min_alloc = addr;
+    if (kmem_early_min_alloc < addr)
+        kmem_early_min_alloc = addr;
 }
 
 void kmem_early_init(multiboot_info* multiboot)
@@ -61,7 +61,7 @@ void kmem_early_init(multiboot_info* multiboot)
     
     assert(!init_done && !final_done);
     
-    min_alloc = (uint32)&_ld_kernel_end;
+    kmem_early_min_alloc = (uint32)&_ld_kernel_end;
     
     if (multiboot->flags & MB_FLAG_ELF_SHDR)
     {
@@ -89,24 +89,28 @@ void kmem_early_init(multiboot_info* multiboot)
         }
     }
     
-    if ((min_alloc & 0xfff) != 0)
+    if ((kmem_early_min_alloc & 0xfff) != 0)
     {
-        min_alloc |= 0xfff;
-        min_alloc += 1;
+        kmem_early_min_alloc |= 0xfff;
+        kmem_early_min_alloc += 1;
     }
     
-    next_alloc = min_alloc;
+    kmem_early_next_alloc = kmem_early_min_alloc;
     init_done = true;
 }
 
-void kmem_early_finalize(addr_v* alloc_begin, addr_v* alloc_end)
+void kmem_early_finalize(void)
 {
-    assert(init_done);
+    assert(init_done && !final_done);
     
     // Once we've finalized, the early memory manager can no longer allocate any
     // new memory.
     final_done = true;
     
-    *alloc_begin = (addr_v)(min_alloc + 0xC0000000);
-    *alloc_end = (addr_v)(next_alloc + 0xC0000000);
+    // The next allocation address should be page-aligned now.
+    if ((kmem_early_next_alloc & FRAME_MASK) != 0)
+    {
+        kmem_early_next_alloc |= FRAME_MASK;
+        kmem_early_next_alloc += 1;
+    }
 }

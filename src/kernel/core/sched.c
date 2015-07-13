@@ -257,7 +257,7 @@ void sched_process_destroy(sched_process* process)
 
 int sched_thread_create(sched_process* process, sched_thread_function func, void* arg, sched_thread** thread)
 {
-    void** stack_low = kmem_pages_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, 0, THREAD_STACK_SIZE / FRAME_SIZE);
+    void** stack_low = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, 0, THREAD_STACK_SIZE / FRAME_SIZE);
     void** stack_high = stack_low + THREAD_STACK_SIZE / sizeof(void*);
     
     if (stack_low == NULL)
@@ -273,7 +273,7 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     if (t == NULL)
     {
         spinlock_release(&process->lock);
-        kmem_pages_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
+        kmem_page_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
         return -1; // TODO Come up with proper error codes
     }
     
@@ -290,7 +290,7 @@ void sched_thread_destroy(sched_thread* thread)
     if (thread->in_queue != NULL)
         sched_thread_force_dequeue(thread);
     
-    kmem_pages_global_free(thread->stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
+    kmem_page_global_free(thread->stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
     
     if (thread->process->first_thread == thread)
     {
