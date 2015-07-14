@@ -9,11 +9,14 @@ source_directory=$(dirname $(readlink -f "$0"))
 object_directory=$1
 output_directory=$2
 
+version_suffix="-git-$(git describe --always)"
+
 c_warnings="-Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align \
             -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations \
             -Wredundant-decls -Wnested-externs -Winline -Wno-long-long \
             -Wuninitialized -Wconversion -Wstrict-prototypes -Wno-unused-parameter"
-c_build="i686-elf-gcc -c -g -O0 -ffreestanding -std=gnu11 -I$source_directory/include $c_warnings -DSCHED_DEBUG"
+c_build="i686-elf-gcc -c -g -O0 -ffreestanding -std=gnu11 -I$source_directory/include $c_warnings\
+         -DVERSION_SUFFIX=\"$version_suffix\""
 linker="i686-elf-ld -T $source_directory/linker.ld -L$(dirname $(i686-elf-gcc -print-file-name=libgcc.a))"
 linker_suffix="-lgcc"
 
