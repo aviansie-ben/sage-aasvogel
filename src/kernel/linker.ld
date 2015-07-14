@@ -10,9 +10,9 @@ SECTIONS
     /* Pre-initialization code/data goes in this section. Other sections have
        addresses that assume that the kernel has already been mapped to
        0xC0000000, which is done by pre-initialization. */
+    _ld_setup_begin = .;
     .setup :
     {
-        _ld_setup_begin = .;
         . = ALIGN(0x1000);
         *(.mb_header)
         *(.setup)
@@ -22,16 +22,15 @@ SECTIONS
         
         . = ALIGN(0x1000);
         *(.setup_pagedir)
-        
-        /* Once memory manager initialization is done, this area will be
-           reclaimed for use for some operations requiring physical addresses
-           less than 16MiB. We need at least 128KiB of memory reserved for this
-           purpose. */
-        . = MAX(_ld_setup_begin + 0x20000, .);
-        . = ALIGN(0x1000);
-        
-        _ld_setup_end = .;
     }
+    
+    /* Once memory manager initialization is done, this area will be
+       reclaimed for use for some operations requiring physical addresses
+       less than 16MiB. We need at least 128KiB of memory reserved for this
+       purpose. */
+    . = MAX(_ld_setup_begin + 0x20000, .);
+    . = ALIGN(0x1000);
+     _ld_setup_end = .;
     
     /* For all sections below here, addresses will assume that the kernel has
        been properly mapped at 0xC0000000 by the pre-initialization code. */
