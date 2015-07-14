@@ -47,7 +47,7 @@ SECTIONS
     .rodata ALIGN(0x1000) : AT(ADDR(.rodata) - 0xC0000000)
     {
         _ld_rodata_begin = .;
-        *(.rodata)
+        *(.rodata*)
         _ld_rodata_end = .;
     }
     
