@@ -107,6 +107,8 @@ extern void sched_thread_destroy(sched_thread* thread);
 extern void sched_thread_queue_init(sched_thread_queue* queue);
 extern void sched_process_queue_init(sched_process_queue* queue);
 
+extern void sched_thread_wake(sched_thread* thread);
+
 extern void sched_thread_enqueue(sched_thread_queue* queue, sched_thread* thread);
 extern sched_thread* sched_thread_dequeue(sched_thread_queue* queue);
 extern void sched_thread_force_dequeue(sched_thread* thread);

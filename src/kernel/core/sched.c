@@ -281,7 +281,9 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     t->stack_low = stack_low;
     t->stack_high = stack_high;
     
-    *thread = t;
+    if (thread != NULL)
+        *thread = t;
+    
     return 0;
 }
 
@@ -322,6 +324,16 @@ void sched_process_queue_init(sched_process_queue* queue)
 {
     spinlock_init(&queue->lock);
     queue->first = queue->last = NULL;
+}
+
+void sched_thread_wake(sched_thread* thread)
+{
+    assert(thread->in_queue == NULL && thread->status == STS_BLOCKING);
+    
+    spinlock_acquire(&thread->process->thread_run_queue.lock);
+    thread->status = STS_READY;
+    sched_thread_enqueue(&thread->process->thread_run_queue, thread);
+    spinlock_release(&thread->process->thread_run_queue.lock);
 }
 
 void sched_thread_enqueue(sched_thread_queue* queue, sched_thread* thread)
