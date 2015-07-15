@@ -5,7 +5,7 @@
 #include <core/klog.h>
 #include <core/crash.h>
 #include <assert.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 
 #define FREE_REGIONS_PER_FRAME (FRAME_SIZE / sizeof(struct free_region))
 

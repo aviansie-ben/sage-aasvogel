@@ -1,6 +1,6 @@
 #include <core/crash.h>
 #include <core/tty.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 
 #include <string.h>
 #include <core/unwind.h>

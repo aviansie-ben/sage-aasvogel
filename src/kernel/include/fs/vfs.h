@@ -2,7 +2,7 @@
 #define FS_VFS_H
 
 #include <typedef.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 #include <core/bootparam.h>
 
 #define VFS_TYPE(f)         ((f) & 0xF)

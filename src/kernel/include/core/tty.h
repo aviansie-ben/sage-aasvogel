@@ -2,7 +2,7 @@
 #define CORE_TTY_H
 
 #include <core/console.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 #include <stdarg.h>
 
 #define TTY_NUM_VCS 5

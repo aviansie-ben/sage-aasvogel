@@ -1,7 +1,7 @@
 #include <memory/phys.h>
 #include <memory/page.h>
 #include <memory/early.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 
 #include <core/klog.h>
 #include <core/crash.h>

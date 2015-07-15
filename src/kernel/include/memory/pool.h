@@ -2,7 +2,7 @@
 #define MEMORY_POOL_H
 
 #include <typedef.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 
 #include <memory/phys.h>
 

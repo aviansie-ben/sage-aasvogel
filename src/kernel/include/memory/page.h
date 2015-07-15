@@ -2,7 +2,7 @@
 #define MEMORY_PAGE_H
 
 #include <typedef.h>
-#include <lock.h>
+#include <lock/spinlock.h>
 #include <memory/phys.h>
 
 #define KERNEL_VIRTUAL_ADDRESS_BEGIN  0xC0000000u
