@@ -177,7 +177,6 @@ static void pit_tick_handle(regs32_t* r)
         {
             spinlock_acquire(&current_thread->process->thread_run_queue.lock);
             sched_thread_enqueue(&current_thread->process->thread_run_queue, current_thread);
-            current_thread->registers_dirty = true;
             current_thread->status = STS_READY;
             spinlock_release(&current_thread->process->thread_run_queue.lock);
         }
@@ -212,6 +211,7 @@ void sched_init(const boot_param* param)
     if (current_thread == NULL)
         crash("Failed to initialize first kernel thread!");
     
+    current_thread->registers_dirty = true;
     sched_thread_dequeue(&current_process->thread_run_queue);
     
     idle_thread = alloc_init_thread(NULL);
@@ -504,15 +504,14 @@ void sched_switch_thread(sched_thread* thread, regs32_t* r)
     current_thread = thread;
     current_process = thread->process;
     
-    current_thread->status = STS_RUNNING;
-    
     // TODO Switch address spaces
     
     // Wait until registers are fully saved before attempting to acquire the spinlock
     while (current_thread->registers_dirty)
-    {
-        crash_interrupt("Dirty registers?", r);
-    }
+        asm volatile ("pause");
+    
+    current_thread->status = STS_RUNNING;
+    current_thread->registers_dirty = true;
     
     spinlock_acquire(&current_thread->registers_lock);
     load_registers(r, &current_thread->registers);
@@ -614,7 +613,6 @@ void sched_sleep(uint64 milliseconds)
     {
         spinlock_acquire(&current_process->thread_run_queue.lock);
         sched_thread_enqueue(&current_process->thread_run_queue, current_thread);
-        current_thread->registers_dirty = true;
         current_thread->status = STS_READY;
         spinlock_release(&current_process->thread_run_queue.lock);
         
@@ -644,7 +642,6 @@ void sched_sleep(uint64 milliseconds)
         prev_thread->next_in_queue = current_thread;
     }
     
-    current_thread->registers_dirty = true;
     spinlock_release(&sleep_queue.lock);
     
     sched_yield();
