@@ -21,6 +21,7 @@
 
 struct sched_process;
 struct sched_thread;
+struct mutex;
 
 typedef struct
 {
@@ -73,6 +74,8 @@ typedef struct sched_thread
     
     sched_thread_queue* in_queue;
     struct sched_thread* next_in_queue;
+    
+    struct mutex* held_mutexes;
     
 #ifdef SCHED_DEBUG
     unsigned long long creation;
