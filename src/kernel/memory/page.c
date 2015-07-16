@@ -170,7 +170,7 @@ void* kmem_page_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, u
     addr_v page;
     addr_p frames[num_pages];
     size_t frames_n;
-    size_t i;
+    size_t i, j;
     
     frames_n = kmem_frame_alloc_many(frames, num_pages, alloc_flags);
     
@@ -189,7 +189,18 @@ void* kmem_page_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, u
     }
     
     for (i = 0; i < num_pages; i++)
-        kmem_page_global_map(page + (i * FRAME_SIZE), page_flags, false, frames[i]);
+    {
+        if (!kmem_page_global_map(page + (i * FRAME_SIZE), page_flags, false, frames[i]))
+        {
+            for (j = 0; j < i; j++)
+                kmem_page_global_unmap(page + (i * FRAME_SIZE), false);
+            
+            kmem_frame_free_many(frames, frames_n);
+            kmem_virt_free((void*) page, num_pages);
+            
+            return NULL;
+        }
+    }
     
     kmem_page_flush_region(page, num_pages);
     return (void*)page;

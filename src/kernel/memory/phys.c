@@ -43,7 +43,8 @@ static void _push_free_frame(addr_p frame)
         if (!kmem_page_get(&kernel_page_context, (addr_v)&free_stack, &old_free_stack, NULL))
             crash("Free frame stack broken");
         
-        kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame);
+        if (!kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame))
+            crash("Free frame stack broken!");
         
         free_stack_top = 0;
         free_stack.next_stack_frame = old_free_stack;
@@ -69,7 +70,9 @@ static addr_p _pop_free_frame(void)
             crash("Free frame stack broken");
         
         free_stack_top = sizeof(free_stack.free_frames) / sizeof(*free_stack.free_frames);
-        kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, free_stack.next_stack_frame);
+        
+        if (!kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, free_stack.next_stack_frame))
+            crash("Free frame stack broken!");
         
         kmem_free_frames--;
         

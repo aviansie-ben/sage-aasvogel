@@ -52,7 +52,8 @@ static void _create_fr_frame(addr_v addr)
     if ((pframe = kmem_frame_alloc(FA_EMERG)) == FRAME_NULL)
         crash("Cannot allocate space for free virtual regions!");
     
-    kmem_page_global_map(addr, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, pframe);
+    if (!kmem_page_global_map(addr, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, pframe))
+        crash("Cannot allocate space for free virtual regions!");
     
     for (i = 1; i < FREE_REGIONS_PER_FRAME; i++)
         frame->regions_free[i - 1].next = &frame->regions_free[i];
