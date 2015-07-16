@@ -47,7 +47,7 @@ typedef struct
 extern tty_vc tty_virtual_consoles[TTY_NUM_VCS];
 extern tty_serial tty_serial_consoles[TTY_NUM_SERIAL];
 
-extern void tty_init(void);
+extern void tty_init(void) __hidden;
 extern void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height);
 extern void tty_init_serial(tty_serial* tty, uint16 io_port);
 

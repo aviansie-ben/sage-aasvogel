@@ -31,7 +31,7 @@ typedef struct
     uint32 base;
 } __attribute__((packed)) idt_pointer;
 
-extern void idt_init(void);
+extern void idt_init(void) __hidden;
 extern void idt_set_entry(uint32 n, uint32 offset, uint16 selector, uint8 flags);
 
 extern void idt_register_isr_handler(uint32 n, interrupt_handler handler);

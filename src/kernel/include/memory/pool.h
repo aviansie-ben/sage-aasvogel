@@ -30,7 +30,7 @@ typedef struct mempool_small
 } mempool_small;
 
 extern void kmem_pool_small_init(mempool_small* pool, const char* name, uint32 obj_size, uint32 obj_align);
-extern void* kmem_pool_small_alloc(mempool_small* pool, frame_alloc_flags flags);
+extern void* kmem_pool_small_alloc(mempool_small* pool, frame_alloc_flags flags) __warn_unused_result;
 extern void kmem_pool_small_free(mempool_small* pool, void* obj);
 extern void kmem_pool_small_compact(mempool_small* pool);
 

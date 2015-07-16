@@ -17,7 +17,7 @@ typedef enum
     KLOG_LEVEL_MAX    = 7
 } klog_level;
 
-void klog_init(const boot_param* param);
+void klog_init(const boot_param* param) __hidden;
 
 void klog(uint32 level, const char* format, ...);
 

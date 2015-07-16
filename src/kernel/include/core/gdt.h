@@ -45,7 +45,7 @@ typedef struct
 extern gdt_entry gdt_entries[GDT_NUM_ENTRIES];
 extern tss_entry tss_entries[GDT_NUM_TSS_ENTRIES];
 
-extern void gdt_init(void);
+extern void gdt_init(void) __hidden;
 extern void gdt_set(uint32 n, uint32 base, uint32 limit, uint8 access, uint8 flags);
 extern void gdt_set_tss(uint32 n, tss_entry* tss);
 

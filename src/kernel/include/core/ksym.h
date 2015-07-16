@@ -33,9 +33,9 @@ typedef struct
     uint8 visibility;
 } kernel_symbol;
 
-extern const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset, uint32 flags);
-extern uint32 ksym_symbol_lookup(const char* symbol_name);
+extern const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_offset, uint32 flags) __pure;
+extern uint32 ksym_symbol_lookup(const char* symbol_name) __pure;
 
-extern void ksym_load_kernel_symbols(multiboot_info* multiboot);
+extern void ksym_load_kernel_symbols(multiboot_info* multiboot) __hidden;
 
 #endif

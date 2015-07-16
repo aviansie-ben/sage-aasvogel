@@ -21,6 +21,9 @@
 #define hang_soft() magic_breakpoint(); while (true) { asm volatile ("hlt"); }
 
 #define __hidden __attribute__((visibility("hidden")))
+#define __pure __attribute__((pure))
+#define __const __attribute__((const))
+#define __warn_unused_result __attribute__((warn_unused_result))
 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;

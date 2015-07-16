@@ -95,16 +95,30 @@ extern sched_process* first_process;
  */
 extern void sched_init(const boot_param* param);
 
-extern sched_process* sched_process_current(void);
-extern sched_thread* sched_thread_current(void);
+/*
+ * IMPORTANT: sched_process_current and sched_thread_current are marked as
+ * constant functions, even though they actually aren't. However, they always
+ * return the same value when executed from the same context, so they are
+ * usually constant. However, these functions should NOT be called from any code
+ * which calls sched_switch_thread or sched_switch_any, as those are special
+ * functions that may switch the current process/thread without suspending
+ * current execution; in these cases, call __sched_process_current and
+ * __sched_thread_current instead.
+ */
 
-extern sched_process* sched_find_process(uint64 pid);
-extern sched_thread* sched_find_thread(sched_process* process, uint64 tid);
+extern sched_process* sched_process_current(void) __const;
+extern sched_thread* sched_thread_current(void) __const;
 
-extern int sched_process_create(const char* name, sched_process** process);
+extern sched_process* __sched_process_current(void);
+extern sched_thread* __sched_thread_current(void);
+
+extern sched_process* sched_find_process(uint64 pid) __pure;
+extern sched_thread* sched_find_thread(sched_process* process, uint64 tid) __pure;
+
+extern int sched_process_create(const char* name, sched_process** process) __warn_unused_result;
 extern void sched_process_destroy(sched_process* process);
 
-extern int sched_thread_create(sched_process* process, sched_thread_function func, void* arg, sched_thread** thread);
+extern int sched_thread_create(sched_process* process, sched_thread_function func, void* arg, sched_thread** thread) __warn_unused_result;
 extern void sched_thread_destroy(sched_thread* thread);
 
 extern void sched_thread_queue_init(sched_thread_queue* queue);

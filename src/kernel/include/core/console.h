@@ -33,7 +33,7 @@ typedef struct
     console_color back_color : 4;
 } __attribute__((packed)) console_char;
 
-extern void console_init(void);
+extern void console_init(void) __hidden;
 
 extern void console_clear(console_char fill_char);
 extern void console_draw_buffer(const console_char* buffer, uint16 x_off, uint16 y_off, uint16 width, uint16 height);

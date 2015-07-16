@@ -21,12 +21,12 @@ typedef enum
 extern uint32 kmem_total_frames;
 extern uint32 kmem_free_frames;
 
-extern void kmem_phys_init(const boot_param* param);
+extern void kmem_phys_init(const boot_param* param) __hidden;
 
-extern addr_p kmem_frame_alloc(frame_alloc_flags flags);
+extern addr_p kmem_frame_alloc(frame_alloc_flags flags) __warn_unused_result;
 extern void kmem_frame_free(addr_p frame);
 
-extern size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flags flags);
+extern size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flags flags) __warn_unused_result;
 extern void kmem_frame_free_many(const addr_p* frames, size_t num_frames);
 
 #endif

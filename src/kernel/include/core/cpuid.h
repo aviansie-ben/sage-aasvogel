@@ -107,11 +107,11 @@ extern uint8 cpuid_processor_type;
 extern uint16 cpuid_family_id;
 extern uint8 cpuid_model_id;
 
-extern void cpuid_init(void);
+extern void cpuid_init(void) __hidden;
 
-extern bool cpuid_supports_feature_edx(cpuid_feature_edx f);
-extern bool cpuid_supports_feature_ecx(cpuid_feature_ecx f);
-extern bool cpuid_supports_feature_ext_edx(cpuid_feature_ext_edx f);
-extern bool cpuid_supports_feature_ext_ecx(cpuid_feature_ext_ecx f);
+extern bool cpuid_supports_feature_edx(cpuid_feature_edx f) __const;
+extern bool cpuid_supports_feature_ecx(cpuid_feature_ecx f) __const;
+extern bool cpuid_supports_feature_ext_edx(cpuid_feature_ext_edx f) __const;
+extern bool cpuid_supports_feature_ext_ecx(cpuid_feature_ext_ecx f) __const;
 
 #endif

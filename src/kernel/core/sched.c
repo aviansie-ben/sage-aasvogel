@@ -239,6 +239,16 @@ sched_thread* sched_thread_current(void)
     return current_thread;
 }
 
+sched_process* __sched_process_current(void)
+{
+    return current_process;
+}
+
+sched_thread* __sched_thread_current(void)
+{
+    return current_thread;
+}
+
 int sched_process_create(const char* name, sched_process** process)
 {
     sched_process* p = alloc_init_process(name);
