@@ -631,6 +631,9 @@ void sched_sleep(uint64 milliseconds)
     uint32 eflags;
     sched_thread* prev_thread;
     
+    eflags = eflags_save();
+    asm volatile ("cli");
+    
     if (nticks == 0)
     {
         spinlock_acquire(&current_process->thread_run_queue.lock);
@@ -639,11 +642,10 @@ void sched_sleep(uint64 milliseconds)
         spinlock_release(&current_process->thread_run_queue.lock);
         
         sched_yield();
+        eflags_load(eflags);
+        
         return;
     }
-    
-    eflags = eflags_save();
-    asm volatile ("cli");
     
     current_thread->status = STS_SLEEPING;
     current_thread->sleep_until = ticks + nticks;
