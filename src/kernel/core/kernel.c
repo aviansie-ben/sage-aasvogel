@@ -21,6 +21,8 @@
 
 #include <core/sched.h>
 
+#include <fs/vfs.h>
+
 static boot_param gparam;
 
 void kernel_main(multiboot_info* multiboot);
@@ -42,6 +44,8 @@ static void kernel_main2(const boot_param* param)
     
     // Initialize the CPU scheduler
     sched_init(param);
+    
+    vfs_init(param);
     
     hang();
 }

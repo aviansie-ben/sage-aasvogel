@@ -25,6 +25,20 @@
 #define __const __attribute__((const))
 #define __warn_unused_result __attribute__((warn_unused_result))
 
+#define E_SUCCESS         0
+#define E_NOT_FOUND       1
+#define E_NOT_SUPPORTED   2
+#define E_IO_ERROR        3
+#define E_INVALID         4
+#define E_BUSY            5
+#define E_NOT_DIR         6
+#define E_IS_DIR          7
+#define E_NAME_TOO_LONG   8
+#define E_LOOP            9
+#define E_NO_SPACE       10
+#define E_NO_MEMORY      11
+#define E_ALREADY_EXISTS 12
+
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef int8_t int8;
