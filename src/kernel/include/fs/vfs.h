@@ -138,22 +138,38 @@ typedef __warn_unused_result uint32 (*fs_device_write)(struct fs_device* dev, ui
 typedef __warn_unused_result uint32 (*vfs_try_read_function)(struct fs_type* type, struct fs_device* dev);
 
 /**
- * \brief Destroys any information stored by the filesystem about a given device.
+ * \brief Unloads any and all information stored by a filesystem on a particular device before the
+ *        filesystem is unmounted.
  * 
  * This operation must be supported by all filesystems.
  * 
- * If any I/O errors occur while attempting to read from or write to the device when unloading the
- * filesystem, this function **must** ignore them and continue discarding any filesystem
- * information.
+ * If any nodes in the filesystem are currently locked, and the device is not being forcibly
+ * unmounted, then this function **should not** perform any filesystem unloading. If the device
+ * is being forcibly unmounted, then these locks should be forcibly released and any read or
+ * write operations should be interrupted gracefully and return \link E_IO_ERROR \endlink without
+ * crashing the system.
  * 
  * Any vfs nodes within the filesystem which are still being referenced (their refcount is not 0)
  * must not be unloaded. They should be orphaned instead.
  * 
- * \param[in] type The type of filesystem which is being destroyed.
+ * If the filesystem information is successfully discarded, it is then the responsibility of this
+ * function to unlink this device from its mountpoint in such a way that no other thread may see
+ * an inconsistent mount, i.e. a device mounted which has no filesystem.
  * 
- * \param[in] device The device which is being unloaded.
+ * \param[in] device The device which is being unmounted.
+ * 
+ * \param[in] force If true, then the unmount is being forced, and this function must ignore any
+ *                  errors and continue destroying any information.
+ * 
+ * \retval E_SUCCESS The filesystem was successfully unloaded and the device is ready to unmount.
+ * \retval E_IO_ERROR An I/O error was encountered while unloading the filesystem and the unmount is
+ *                    not being forced.
+ * \retval E_BUSY One or more files on this filesystem are currently locked and the unmount is not
+ *                being forced.
+ * \retval E_NO_MEMORY There is insufficient memory to cleanly unmount the filesystem and the
+ *                     unmount is not being forced.
  */
-typedef void (*vfs_destroy_function)(struct fs_type* type, struct fs_device* dev);
+typedef uint32 (*vfs_destroy_function)(struct fs_device* dev, bool force);
 
 /**
  * \brief Loads a vfs node that has the given inode number from the filesystem.
@@ -906,12 +922,24 @@ extern fs_device* vfs_create_device(const char* name, const fs_device_ops* ops, 
 /**
  * \brief Destroys an existing device.
  * 
- * Checks for open files and the like should be done before calling this function if they are
- * necessary, as this function will **unconditionally destroy** the device, even if an error occurs
- * while the filesystem is cleaning up.
+ * This function should only be used when a device is being disconnected, as the filesystem will be
+ * **forcibly unloaded**, even if an error occurs while cleaning up the filesystem information. If
+ * a more gentle approach is needed, use \link vfs_unmount \endlink instead to unmount the
+ * filesystem, leaving the device itself intact.
  * 
  * Calling this function requires that the calling thread hold the \link vfs_list_lock \endlink
  * mutex.
+ * 
+ * This function should **only** be called from device-specific code, as it is the responsibility
+ * of the caller to clean up any extra device memory allocated to the device. It is the
+ * responsibility of the caller to take a copy of \link fs_device::dev_extra \endlink before calling
+ * this function and to free any extra device-specific memory allocations made for this device.
+ * Device-specific information **must not** be freed before calling this function as it could be
+ * in use for servicing any existing requests.
+ * 
+ * It is also the responsibility of the device and filesystem drivers to ensure that any existing
+ * requests in process are interrupted cleanly and do not crash the system. If interrupted, such
+ * operations should generally return \link E_IO_ERROR \endlink.
  * 
  * \param[in] dev The device which is being destroyed. Once this function has returned, this device
  *                pointer is **no longer valid** and may point to another device entirely or to
@@ -1016,6 +1044,10 @@ extern void vfs_node_ref(vfs_node* node);
  * If the referent count of the requested node becomes 0 as a result, then the node will be unloaded
  * via \link vfs_unload_function \endlink.
  * 
+ * The calling thread **must not** hold the \link vfs_node::lock \endlink mutex for the given node.
+ * If the node were to be unloaded, an attempt to release this mutex would result in an access to
+ * unallocated memory.
+ * 
  * \param[in] node The node for which a reference is being discarded.
  */
 extern void vfs_node_unref(vfs_node* node);
@@ -1052,10 +1084,26 @@ extern uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev) __warn_unused_resu
  * This operation will not result in the destruction of the device, that must be accomplished
  * separately, through a device-specific function.
  * 
- * The calling thread **must** currently be holding both the \link vfs_list_lock \endlink mutex, as
- * well as the \link vfs_node::lock \endlink mutex for the mountpoint. Note that these mutexes
- * **must** be acquired in that order to prevent a deadlock.
+ * The calling thread **must** be currently holding the \link vfs_list_lock \endlink mutex and
+ * **must not** currently be holding any \link vfs_node::lock \endlink mutexes.
+ * 
+ * \param[in] mountpoint The directory at which the device to be unmounted is currently mounted.
+ * 
+ * \param[in] force If 0, then the unmount will only proceed if it can be done cleanly. If 1, then
+ *                  in the event of an error, the root node will be disconnected from its
+ *                  mountpoint, but the filesystem will not fully unmount and the proper error code
+ *                  will be returned. If 2, then the filesystem will be completely destroyed in the
+ *                  event of an error and that error will not be returned.
+ * 
+ * \retval E_SUCCESS The device at the given mountpoint was successfully unmounted.
+ * \retval E_IO_ERROR An I/O error was encountered while unmounting the filesystem and the unmount
+ *                    is not being forced.
+ * \retval E_INVALID No device is currently mounted at the given mountpoint.
+ * \retval E_BUSY One or more files are currently open on this device and the unmount is not being
+ *                forced.
+ * \retval E_NO_MEMORY There is insufficient memory to cleanly unmount the filesystem and the
+ *                     unmount is not being forced.
  */
-extern void vfs_unmount(vfs_node* mountpoint);
+extern uint32 vfs_unmount(vfs_node* mountpoint, uint32 force);
 
 #endif

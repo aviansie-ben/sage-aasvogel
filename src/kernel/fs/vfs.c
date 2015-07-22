@@ -96,7 +96,35 @@ fs_device* vfs_create_device(const char* name, const fs_device_ops* ops, uint32 
 
 void vfs_destroy_device(fs_device* dev)
 {
-    crash("Not implemented!");
+    fs_device* pdev;
+    
+    // If the device currently has a filesystem, we must unload it before we can destroy the
+    // device itself.
+    if (dev->fs != NULL)
+    {
+        if (dev->mountpoint != NULL)
+            vfs_unmount(dev->mountpoint, 2);
+        else
+            dev->fs->ops->destroy(dev, true);
+    }
+    
+    // Now we can unlink the device from the list of known devices
+    if (vfs_device_first == dev)
+    {
+        vfs_device_first = dev->next;
+    }
+    else
+    {
+        for (pdev = vfs_device_first; pdev != NULL && pdev->next != dev; pdev = pdev->next) ;
+        
+        if (pdev != NULL)
+            pdev->next = dev->next;
+        else
+            crash("Attempt to destroy a device that was never registered!");
+    }
+    
+    // And now we can finally free the memory allocated for the device
+    kmem_pool_small_free(&vfs_device_pool, dev);
 }
 
 uint32 vfs_normalize_path(const char* cur_path, const char* path_in, char* path_out, size_t* len)
@@ -225,7 +253,14 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
         {
             // Find the next node along the path
             path_part[j] = '\0';
-            err = node->ops->find(node, path_part, &next_node);
+            
+            mutex_acquire(&node->lock);
+            if (node->ops != NULL)
+                err = node->ops->find(node, path_part, &next_node);
+            else
+                err = E_IO_ERROR; // The node was orphaned during our search
+            mutex_release(&node->lock);
+            
             vfs_node_unref(node);
             node = next_node;
             
@@ -239,9 +274,9 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
                 next_node = node->mounted->root_node;
                 
                 vfs_node_ref(next_node);
-                vfs_node_unref(node);
                 
                 mutex_release(&node->lock);
+                vfs_node_unref(node);
                 node = next_node;
             }
             else
@@ -263,7 +298,13 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
                 }
                 
                 // Read the symlink and discard the node reference
-                err = node->ops->read_symlink(node, symlink_path);
+                mutex_acquire(&node->lock);
+                if (node->ops != NULL)
+                    err = node->ops->read_symlink(node, symlink_path);
+                else
+                    err = E_IO_ERROR; // The node was orphaned during our search
+                mutex_release(&node->lock);
+                
                 vfs_node_unref(node);
                 
                 if (err != E_SUCCESS)
@@ -341,7 +382,13 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
     {
         path_part[j] = '\0';
         
-        err = node->ops->find(node, path_part, &next_node);
+        mutex_acquire(&node->lock);
+        if (node->ops != NULL)
+            err = node->ops->find(node, path_part, &next_node);
+        else
+            err = E_IO_ERROR; // The node was orphaned during our search
+        mutex_release(&node->lock);
+        
         vfs_node_unref(node);
         node = next_node;
         
@@ -438,14 +485,55 @@ uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
     return E_SUCCESS;
 }
 
-void vfs_unmount(vfs_node* mountpoint)
+uint32 vfs_unmount(vfs_node* mountpoint, uint32 force)
 {
+    uint32 errno;
+    fs_device* dev;
+    fs_device* mdev;
+    
+    // Check that the device is actually a mountpoint
+    mutex_acquire(&mountpoint->lock);
     if ((mountpoint->flags & VFS_FLAG_MOUNTPOINT) == 0)
     {
-        return;
+        return E_INVALID;
+    }
+    dev = mountpoint->mounted;
+    mutex_release(&mountpoint->lock);
+    
+    // If any nodes under this device were themselves mountpoints, we need to unmount those first in
+    // order to prevent any orphaned nodes from being impossible to remove.
+    for (mdev = vfs_device_first; mdev != NULL; mdev = mdev->next)
+    {
+        mountpoint = mdev->mountpoint;
+        
+        if (mountpoint != NULL && mountpoint->dev == dev)
+        {
+            errno = vfs_unmount(mountpoint, (errno == 0) ? 0 : 1);
+            
+            if (force == 0 && errno != E_SUCCESS)
+                return errno;
+        }
     }
     
-    mountpoint->mounted->mountpoint = NULL;
-    mountpoint->mounted = NULL;
-    mountpoint->flags &= (uint32)~VFS_FLAG_MOUNTPOINT;
+    // Try to actually destroy the filesystem information and unmount the filesystem
+    errno = dev->fs->ops->destroy(dev, force >= 2);
+    
+    if (errno != E_SUCCESS)
+    {
+        if (force == 0)
+            return errno;
+        
+        // Unmount the filesystem from its mountpoint anyway
+        mutex_acquire(&mountpoint->lock);
+        dev->mountpoint = NULL;
+        mountpoint->flags &= (uint32)~VFS_FLAG_MOUNTPOINT;
+        mountpoint->mounted = NULL;
+        mutex_release(&mountpoint->lock);
+        vfs_node_unref(mountpoint);
+        
+        if (force == 1)
+            return errno;
+    }
+    
+    return E_SUCCESS;
 }
