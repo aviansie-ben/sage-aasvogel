@@ -5,8 +5,10 @@
 
 #include <core/klog.h>
 #include <core/crash.h>
+#include <assert.h>
 
 #define EMERG_STACK_SIZE 128
+#define FRAMES_PER_STACK_FRAME ((FRAME_SIZE / sizeof(addr_p)) - 1)
 
 typedef struct
 {
@@ -16,8 +18,12 @@ typedef struct
 
 static spinlock free_stack_lock;
 
+static bool high_stack_enabled;
+static uint32 high_stack_top;
+static volatile free_frame_stack high_stack __attribute__((aligned(FRAME_SIZE)));
+
 static uint32 free_stack_top;
-static free_frame_stack free_stack __attribute__((aligned(FRAME_SIZE)));
+static volatile free_frame_stack free_stack __attribute__((aligned(FRAME_SIZE)));
 
 static uint32 emerg_stack_top;
 static addr_p emerg_stack[EMERG_STACK_SIZE];
@@ -25,53 +31,69 @@ static addr_p emerg_stack[EMERG_STACK_SIZE];
 uint32 kmem_total_frames;
 uint32 kmem_free_frames;
 
+static void _push_free_frame_stack(uint32* stack_top, volatile free_frame_stack* stack, addr_p frame)
+{
+    if (*stack_top != FRAMES_PER_STACK_FRAME)
+    {
+        stack->free_frames[(*stack_top)++] = frame;
+    }
+    else
+    {
+        addr_p old_stack;
+        if (!kmem_page_global_get((addr_v)stack, &old_stack, NULL))
+            crash("Free frame stack broken");
+        
+        if (!kmem_page_global_map((addr_v)stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame))
+            crash("Free frame stack broken!");
+        
+        *stack_top = 0;
+        stack->next_stack_frame = old_stack;
+    }
+}
+
 static void _push_free_frame(addr_p frame)
 {
     kmem_free_frames++;
     
-    if (emerg_stack_top != EMERG_STACK_SIZE)
+    if (frame >= (1ull << 32))
     {
-        emerg_stack[emerg_stack_top++] = frame;
-    }
-    else if (free_stack_top != sizeof(free_stack.free_frames) / sizeof(*free_stack.free_frames))
-    {
-        free_stack.free_frames[free_stack_top++] = frame;
+        assert(high_stack_enabled);
+        _push_free_frame_stack(&high_stack_top, &high_stack, frame);
     }
     else
     {
-        addr_p old_free_stack;
-        if (!kmem_page_get(&kernel_page_context, (addr_v)&free_stack, &old_free_stack, NULL))
-            crash("Free frame stack broken");
-        
-        if (!kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame))
-            crash("Free frame stack broken!");
-        
-        free_stack_top = 0;
-        free_stack.next_stack_frame = old_free_stack;
+        if (emerg_stack_top != EMERG_STACK_SIZE)
+        {
+            emerg_stack[emerg_stack_top++] = frame;
+        }
+        else
+        {
+            _push_free_frame_stack(&free_stack_top, &free_stack, frame);
+        }
     }
 }
 
-static addr_p _pop_free_frame(void)
+static addr_p _pop_free_frame(uint32* stack_top, volatile free_frame_stack* stack)
 {
     addr_p frame;
     
-    if (free_stack_top != 0)
+    if (*stack_top != 0)
     {
-        frame = free_stack.free_frames[--free_stack_top];
-        free_stack.free_frames[free_stack_top] = FRAME_NULL;
+        frame = stack->free_frames[--(*stack_top)];
+        stack->free_frames[*stack_top] = FRAME_NULL;
         
         kmem_free_frames--;
         
         return frame;
     }
-    else if (free_stack.next_stack_frame != FRAME_NULL)
+    else if (stack->next_stack_frame != FRAME_NULL)
     {
-        if (!kmem_page_get(&kernel_page_context, (addr_v)&free_stack, &frame, NULL))
+        if (!kmem_page_global_get((addr_v)stack, &frame, NULL))
             crash("Free frame stack broken");
         
-        free_stack_top = sizeof(free_stack.free_frames) / sizeof(*free_stack.free_frames);
+        *stack_top = FRAMES_PER_STACK_FRAME;
         
-        if (!kmem_page_global_map((addr_v)&free_stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, free_stack.next_stack_frame))
+        if (!kmem_page_global_map((addr_v)stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, stack->next_stack_frame))
             crash("Free frame stack broken!");
         
         kmem_free_frames--;
@@ -105,11 +127,15 @@ static addr_p _pop_emerg_frame(void)
 
 static addr_p _alloc_frame(frame_alloc_flags flags)
 {
-    addr_p frame;
+    addr_p frame = FRAME_NULL;
     
     while (true)
     {
-        frame = _pop_free_frame();
+        if ((flags & FA_32BIT) == 0 && high_stack_enabled)
+            frame = _pop_free_frame(&high_stack_top, &high_stack);
+        
+        if (frame == FRAME_NULL)
+            frame = _pop_free_frame(&free_stack_top, &free_stack);
         
         if (frame == FRAME_NULL && (flags & FA_EMERG) != 0)
         {
@@ -131,6 +157,7 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
 
 static void _push_unallocated(const boot_param* param)
 {
+    bool high_warn = false;
     addr_p alloc_end = (addr_p)kmem_early_next_alloc;
     
     multiboot_mmap_entry* mmap = (multiboot_mmap_entry*) (param->multiboot->mmap_addr + 0xC0000000);
@@ -182,6 +209,18 @@ static void _push_unallocated(const boot_param* param)
                 
                 for (addr = region_begin; addr != region_end; addr += 0x1000)
                 {
+                    if (addr >= (1ull << 32) && !high_stack_enabled)
+                    {
+                        if (!high_warn)
+                        {
+                            klog(KLOG_LEVEL_WARN, "Memory beyond 4GiB detected, but unusable since PAE is disabled\n");
+                            high_warn = true;
+                        }
+                        
+                        kmem_total_frames -= (uint32)((region_end - addr) / FRAME_SIZE);
+                        break;
+                    }
+                    
                     _push_free_frame(addr);
                 }
             }
@@ -207,6 +246,10 @@ void kmem_phys_init(const boot_param* param)
 {
     free_stack.next_stack_frame = FRAME_NULL;
     free_stack_top = 0;
+    
+    high_stack_enabled = kmem_page_pae_enabled;
+    high_stack.next_stack_frame = FRAME_NULL;
+    high_stack_top = 0;
     
     _push_unallocated(param);
     
