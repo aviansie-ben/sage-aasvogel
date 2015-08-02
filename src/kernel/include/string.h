@@ -7,6 +7,7 @@ extern void strcpy(char* dest, const char* src);
 extern void strncpy(char* dest, const char* src, size_t n);
 extern void strcat(char* dest, const char* src);
 extern size_t strlen(const char* s) __pure;
+extern int strcmp(const char* s1, const char* s2);
 
 extern char* itoa(int val, char* s, unsigned int base);
 extern char* itoa_l(long long val, char* s, unsigned int base);
