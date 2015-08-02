@@ -3,6 +3,9 @@ bin/
 img/
 obj/
 
+# Documentation output
+doc/
+
 # Output image
 sa.img
 
