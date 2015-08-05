@@ -16,6 +16,7 @@ typedef struct
     addr_p free_frames[(FRAME_SIZE / sizeof(addr_p)) - 1];
 } free_frame_stack;
 
+static bool init_done;
 static spinlock free_stack_lock;
 
 static bool high_stack_enabled;
@@ -254,11 +255,14 @@ void kmem_phys_init(const boot_param* param)
     _push_unallocated(param);
     
     klog(KLOG_LEVEL_INFO, "Found %dKiB of memory, with %dKiB free.\n", kmem_total_frames * 4, kmem_free_frames * 4);
+    init_done = true;
 }
 
 addr_p kmem_frame_alloc(frame_alloc_flags flags)
 {
     addr_p frame;
+    
+    assert(init_done);
     
     spinlock_acquire(&free_stack_lock);
     frame = _alloc_frame(flags);
@@ -269,6 +273,8 @@ addr_p kmem_frame_alloc(frame_alloc_flags flags)
 
 void kmem_frame_free(addr_p frame)
 {
+    assert(init_done);
+    
     spinlock_acquire(&free_stack_lock);
     _push_free_frame(frame);
     spinlock_release(&free_stack_lock);
@@ -278,6 +284,8 @@ size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flag
 {
     addr_p frame;
     size_t i;
+    
+    assert(init_done);
     
     spinlock_acquire(&free_stack_lock);
     
@@ -301,6 +309,8 @@ size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flag
 
 void kmem_frame_free_many(const addr_p* frames, size_t num_frames)
 {
+    assert(init_done);
+    
     spinlock_acquire(&free_stack_lock);
     while (num_frames-- != 0)
     {
