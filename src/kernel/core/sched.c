@@ -112,8 +112,6 @@ static sched_process* alloc_init_process(const char* name)
     
     p->next = NULL;
     
-    spinlock_acquire(&p->lock);
-    
     spinlock_acquire(&first_process_spinlock);
     p->next = first_process;
     first_process = p;
@@ -122,8 +120,6 @@ static sched_process* alloc_init_process(const char* name)
     spinlock_acquire(&process_run_queue.lock);
     sched_process_enqueue(&process_run_queue, p);
     spinlock_release(&process_run_queue.lock);
-    
-    spinlock_release(&p->lock);
     
     klog(KLOG_LEVEL_DEBUG, "Created process %ld (%s)\n", p->pid, p->name);
     return p;
