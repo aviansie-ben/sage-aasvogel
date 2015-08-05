@@ -20,7 +20,6 @@
 static sched_process* current_process;
 static sched_thread* current_thread;
 
-static spinlock next_pid_spinlock;
 static uint64 next_pid = 0;
 
 #ifndef SCHED_NO_PREEMPT
@@ -102,9 +101,7 @@ static sched_process* alloc_init_process(const char* name)
     
     spinlock_init(&p->lock);
     
-    spinlock_acquire(&next_pid_spinlock);
-    p->pid = next_pid++;
-    spinlock_release(&next_pid_spinlock);
+    p->pid = __atomic_fetch_add(&next_pid, 1, __ATOMIC_RELAXED);
     
     strncpy(p->name, name, sizeof(p->name) - 1);
     p->name[sizeof(p->name) - 1] = '\0';
@@ -192,7 +189,6 @@ static void yield_interrupt_handle(regs32_t* r)
 
 void sched_init(const boot_param* param)
 {
-    spinlock_init(&next_pid_spinlock);
     spinlock_init(&first_process_spinlock);
     
     kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process));
