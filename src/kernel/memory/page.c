@@ -106,10 +106,6 @@ void kmem_page_init(const boot_param* param)
     _init_map_range((addr_v)&_ld_bss_begin, (addr_v)&_ld_bss_end, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
     _init_map_kmalloc_early(PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL);
     
-    // Finalize the early memory manager to ensure that no more allocations are
-    // made now that all its memory has been mapped.
-    kmem_early_finalize();
-    
     // Perform stage 2 initialization
     if (kmem_page_pae_enabled) kmem_page_pae_init2(param);
     else crash("Legacy paging not implemented!");

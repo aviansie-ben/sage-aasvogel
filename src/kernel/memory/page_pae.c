@@ -7,6 +7,7 @@
 #include <core/msr.h>
 
 #include <core/crash.h>
+#include <assert.h>
 
 #define ALLOW_PAGE_H_DIRECT
 #include <memory/page_pae.h>
@@ -22,9 +23,6 @@
 #define PT_SIZE 512
 #define PT_SHIFT FRAME_SHIFT
 #define PT_MASK (-(1u << PT_SHIFT) & ~PDPT_MASK & ~PD_MASK)
-
-static addr_v global_tables;
-static bool use_nx = false;
 
 typedef struct page_dir_pae
 {
@@ -45,6 +43,12 @@ typedef struct page_dir_ptr_tab
     bool kernel;
 } page_dir_ptr_tab __attribute__((aligned(0x20)));
 
+static bool init2_done;
+static bool use_nx = false;
+
+static addr_v global_tables;
+
+static page_dir_ptr_tab pdpt_global;
 static mempool_small pdpt_pool;
 
 static page_table_pae* _get_page_table(page_dir_ptr_tab* pdpt, addr_v address)
@@ -103,34 +107,51 @@ static page_table_pae* _alloc_page_table_global(page_dir_ptr_tab* pdpt, addr_v a
     if (pdpt->page_dir_virt[pdpte] == NULL)
         crash("Attempt to map a page into a reserved area!");
     
-    if (global_tables != 0)
+    if (init2_done)
     {
         addr_p frame = kmem_frame_alloc(FA_EMERG);
         if (frame == FRAME_NULL)
             return NULL;
         
         kmem_page_pae_set(&kernel_page_context, global_tables + (pde * FRAME_SIZE), frame, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL | PT_ENTRY_PRESENT);
+        kmem_page_flush_one(global_tables + (pde * FRAME_SIZE));
+        
         pdpt->page_dir_virt[pdpte]->page_table_phys[pde] = frame | PD_ENTRY_PRESENT | PD_ENTRY_WRITEABLE;
         if (kmem_page_pge_enabled)
             pdpt->page_dir_virt[pdpte]->page_table_phys[pde] |= PD_ENTRY_GLOBAL;
         
-        return pdpt->page_table_virt[pdet] = (page_table_pae*)(global_tables + (pde * FRAME_SIZE));
+        pdpt->page_table_virt[pdet] = (page_table_pae*)(global_tables + (pde * FRAME_SIZE));
+        
+        for (size_t i = 0; i < PT_SIZE; i++)
+            pdpt->page_table_virt[pdet]->page_phys[i] = 0;
     }
     else
     {
-        uint32 phys;
+        assert(kmem_early_next_alloc <= global_tables + (pde * FRAME_SIZE) - 0xC0000000);
         
-        pdpt->page_table_virt[pdet] = kmalloc_early(sizeof(page_table_pae), __alignof__(page_table_pae), &phys);
-        pdpt->page_dir_virt[pdpte]->page_table_phys[pde] = phys | PD_ENTRY_PRESENT | PD_ENTRY_WRITEABLE;
-        if (kmem_page_pge_enabled)
-            pdpt->page_dir_virt[pdpte]->page_table_phys[pde] |= PD_ENTRY_GLOBAL;
+        for (uint32 pde_map = (kmem_early_next_alloc & PD_MASK) >> PD_SHIFT; pde_map <= pde; pde_map++)
+        {
+            page_table_pae* pt = (page_table_pae*) (global_tables + pde_map * FRAME_SIZE);
+            
+            pdpt->page_table_virt[pde_map + pdpte * PD_SIZE] = pt;
+            pdpt->page_dir_virt[pdpte]->page_table_phys[pde_map] = ((uint32)pt - 0xC0000000) | PD_ENTRY_PRESENT | PD_ENTRY_WRITEABLE;
+            
+            for (size_t i = 0; i < PT_SIZE; i++)
+                pdpt->page_table_virt[pdet]->page_phys[i] = 0;
+            
+            kmem_page_pae_set(&kernel_page_context, (uint32)pt, (uint32)pt - 0xC0000000, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL | PT_ENTRY_PRESENT);
+        }
         
-        return pdpt->page_table_virt[pdet];
+        kmem_early_next_alloc = global_tables + ((pde + 1) * FRAME_SIZE) - 0xC0000000;
     }
+    
+    return pdpt->page_table_virt[pdet];
 }
 
 void kmem_page_pae_init(const boot_param* param)
 {
+    uint32 a;
+    
     // Intialize the PDPT pool (It cannot be used yet, but it can be initialized
     // before the memory manager is fully ready)
     kmem_pool_small_init(&pdpt_pool, "page_dir_ptr_tab pool", sizeof(page_dir_ptr_tab), __alignof__(page_dir_ptr_tab));
@@ -139,10 +160,21 @@ void kmem_page_pae_init(const boot_param* param)
     use_nx = !cmdline_get_bool(param, "no_nx") && msr_is_supported() && cpuid_supports_feature_ext_edx(CPUID_FEATURE_EXT_EDX_NX);
     if (use_nx)
         msr_write(MSR_EFER, msr_read(MSR_EFER) | MSR_EFER_FLAG_NX);
-}
-
-void kmem_page_pae_init2(const boot_param* param)
-{
+    
+    // Initialize the global PDPT before the early memory manager is finalized.
+    pdpt_global.page_dir_phys[0] = pdpt_global.page_dir_phys[1] = pdpt_global.page_dir_phys[2] = 0;
+    pdpt_global.page_dir_virt[0] = pdpt_global.page_dir_virt[1] = pdpt_global.page_dir_virt[2] = NULL;
+    
+    pdpt_global.page_dir_virt[3] = kmalloc_early(sizeof(page_dir_pae), __alignof__(page_dir_pae), &a);
+    pdpt_global.page_dir_phys[3] = a;
+    pdpt_global.page_dir_phys[3] |= PDPT_ENTRY_PRESENT;
+    
+    pdpt_global.page_table_virt = kmalloc_early(sizeof(page_table_pae*) * (PD_SIZE * PDPT_SIZE), __alignof__(page_table_pae*), NULL);
+    
+    // Finalize the early memory manager to ensure that no more allocations are
+    // made now that initialization has begun.
+    kmem_early_finalize();
+    
     // The early memory manager is finalized now, so we can put our reserved
     // virtual addresses right after the end of the early allocations.
     global_tables = kmem_early_next_alloc + 0xC0000000;
@@ -154,11 +186,16 @@ void kmem_page_pae_init2(const boot_param* param)
     }
     
     kmem_page_resv_end = global_tables + (PD_SIZE * FRAME_SIZE);
-    
+}
+
+void kmem_page_pae_init2(const boot_param* param)
+{
     // Ensure that page tables are allocated beforehand for storing global
     // tables.
     for (addr_v addr = global_tables; addr < kmem_page_resv_end; addr += FRAME_SIZE)
         kmem_page_pae_set(&kernel_page_context, addr, 0, 0);
+    
+    init2_done = true;
 }
 
 bool kmem_page_pae_context_create(page_context* c, bool kernel_table)
@@ -168,18 +205,8 @@ bool kmem_page_pae_context_create(page_context* c, bool kernel_table)
     
     if (kernel_table)
     {
-        uint32 a;
-        
-        c->pae_pdpt = kmalloc_early(sizeof(page_dir_ptr_tab), __alignof__(page_dir_ptr_tab), &c->physical_address);
-        
-        c->pae_pdpt->page_dir_phys[0] = c->pae_pdpt->page_dir_phys[1] = c->pae_pdpt->page_dir_phys[2] = 0;
-        c->pae_pdpt->page_dir_virt[0] = c->pae_pdpt->page_dir_virt[1] = c->pae_pdpt->page_dir_virt[2] = NULL;
-        
-        c->pae_pdpt->page_dir_virt[3] = kmalloc_early(sizeof(page_dir_pae), __alignof__(page_dir_pae), &a);
-        c->pae_pdpt->page_dir_phys[3] = a;
-        c->pae_pdpt->page_dir_phys[3] |= PDPT_ENTRY_PRESENT;
-        
-        c->pae_pdpt->page_table_virt = kmalloc_early(sizeof(page_table_pae*) * (PD_SIZE * PDPT_SIZE), __alignof__(page_table_pae*), NULL);
+        c->pae_pdpt = &pdpt_global;
+        c->physical_address = (uint32)&pdpt_global - 0xC0000000;
     }
     else
     {
