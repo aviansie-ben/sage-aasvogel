@@ -3,6 +3,10 @@
 #include <memory/virt.h>
 
 #include <core/crash.h>
+#include <assert.h>
+
+#define MAP_TYPE_NONE 0
+#define MAP_TYPE_SMALL 1
 
 typedef struct mempool_fixed_free_slot
 {
@@ -21,17 +25,70 @@ struct mempool_small_part
 static spinlock small_pool_list_lock;
 static mempool_small* small_pool_list;
 
+typedef struct
+{
+    uint32 type;
+    
+    union
+    {
+        mempool_small* pool_small;
+    };
+} mempool_map;
+
+typedef struct
+{
+    mempool_map mappings[FRAME_SIZE / sizeof(mempool_map)];
+} mempool_map_table;
+
+mempool_map_table* mapping_tables[(0x40000 * sizeof(mempool_map)) / sizeof(mempool_map_table)];
+
+static mempool_small pool_gen_16;
+static mempool_small pool_gen_32;
+static mempool_small pool_gen_64;
+static mempool_small pool_gen_128;
+static mempool_small pool_gen_256;
+
 static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
 {
     mempool_small_part* p;
     mempool_fixed_free_slot* s;
     
     size_t i;
+    size_t j;
     
     p = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, pool->frames_per_part);
     
     if (p == NULL)
         return;
+    
+    for (i = 0; i < pool->frames_per_part; i++)
+    {
+        uint32 table = (((uint32)p - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
+        uint32 map = (((uint32)p - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+        
+        if (mapping_tables[table] == NULL)
+        {
+            mapping_tables[table] = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, 1);
+            
+            if (mapping_tables[table] == NULL)
+            {
+                for (j = 0; j < i; j++)
+                {
+                    table = (((uint32)p - 0xc0000000 + (j * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
+                    map = (((uint32)p - 0xc0000000 + (j * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+                    
+                    mapping_tables[table]->mappings[map].type = MAP_TYPE_NONE;
+                    mapping_tables[table]->mappings[map].pool_small = NULL;
+                }
+                
+                kmem_page_global_free(p, pool->frames_per_part);
+                return;
+            }
+        }
+        
+        mapping_tables[table]->mappings[map].type = MAP_TYPE_SMALL;
+        mapping_tables[table]->mappings[map].pool_small = pool;
+    }
     
     p->pool = pool;
     p->next_part = pool->parts_empty;
@@ -55,6 +112,15 @@ static void _small_pool_part_free(mempool_small* pool, mempool_small_part* part,
 {
     if (part->num_free != (pool->frames_per_part * FRAME_SIZE - sizeof(mempool_small_part) - pool->part_first_offset) / pool->obj_size)
         crash("Attempt to free a pool part which is not empty!");
+    
+    for (size_t i = 0; i < pool->frames_per_part; i++)
+    {
+        uint32 table = (((uint32)part - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
+        uint32 map = (((uint32)part - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+        
+        mapping_tables[table]->mappings[map].type = MAP_TYPE_NONE;
+        mapping_tables[table]->mappings[map].pool_small = NULL;
+    }
     
     if (prev_part != NULL) prev_part->next_part = part->next_part;
     else pool->parts_empty = part->next_part;
@@ -215,7 +281,61 @@ void kmem_pool_small_compact(mempool_small* pool)
     spinlock_release(&pool->lock);
 }
 
-void kmem_pools_compact()
+void kmem_pool_generic_init(void)
+{
+    kmem_pool_small_init(&pool_gen_16, "generic_16", 16, 4);
+    kmem_pool_small_init(&pool_gen_32, "generic_32", 32, 4);
+    kmem_pool_small_init(&pool_gen_64, "generic_64", 64, 4);
+    kmem_pool_small_init(&pool_gen_128, "generic_128", 128, 4);
+    kmem_pool_small_init(&pool_gen_256, "generic_256", 256, 4);
+}
+
+void* kmem_pool_generic_alloc(size_t size, frame_alloc_flags flags)
+{
+    if (size <= 16)
+        return kmem_pool_small_alloc(&pool_gen_16, flags);
+    else if (size <= 32)
+        return kmem_pool_small_alloc(&pool_gen_32, flags);
+    else if (size <= 64)
+        return kmem_pool_small_alloc(&pool_gen_64, flags);
+    else if (size <= 128)
+        return kmem_pool_small_alloc(&pool_gen_128, flags);
+    else if (size <= 256)
+        return kmem_pool_small_alloc(&pool_gen_256, flags);
+    else
+        crash("TODO: Allow generic allocations over 256 bytes");
+}
+
+void kmem_pool_generic_free(void* obj)
+{
+    assert((uint32)obj >= 0xc0000000);
+    
+    uint32 table = (((uint32)obj - 0xc0000000) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
+    uint32 map = (((uint32)obj - 0xc0000000) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+    
+    if (mapping_tables[table] == NULL || mapping_tables[table]->mappings[map].type == MAP_TYPE_NONE)
+        crash("Attempt to free an object which isn't in memory allocated to a pool!");
+    
+    if (mapping_tables[table]->mappings[map].type == MAP_TYPE_SMALL)
+    {
+        kmem_pool_small_free(mapping_tables[table]->mappings[map].pool_small, obj);
+    }
+    else
+    {
+        crash("Unknown mapping type!");
+    }
+}
+
+void kmem_pool_generic_compact(void)
+{
+    kmem_pool_small_compact(&pool_gen_16);
+    kmem_pool_small_compact(&pool_gen_32);
+    kmem_pool_small_compact(&pool_gen_64);
+    kmem_pool_small_compact(&pool_gen_128);
+    kmem_pool_small_compact(&pool_gen_256);
+}
+
+void kmem_pools_compact(void)
 {
     mempool_small* pool;
     

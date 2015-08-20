@@ -34,6 +34,11 @@ extern void* kmem_pool_small_alloc(mempool_small* pool, frame_alloc_flags flags)
 extern void kmem_pool_small_free(mempool_small* pool, void* obj);
 extern void kmem_pool_small_compact(mempool_small* pool);
 
+extern void kmem_pool_generic_init(void);
+extern void* kmem_pool_generic_alloc(size_t size, frame_alloc_flags flags) __warn_unused_result;
+extern void kmem_pool_generic_free(void* obj);
+extern void kmem_pool_generic_compact(void);
+
 extern void kmem_pools_compact(void);
 
 #endif

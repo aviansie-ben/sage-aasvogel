@@ -41,13 +41,14 @@ static void kernel_main2(const boot_param* param)
     kmem_page_init(param);
     kmem_phys_init(param);
     kmem_virt_init(param);
+    kmem_pool_generic_init();
     
     // Initialize the CPU scheduler
     sched_init(param);
     
     vfs_init(param);
     
-    hang();
+    hang_soft();
 }
 
 void kernel_main(multiboot_info* multiboot)
