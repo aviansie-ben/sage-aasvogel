@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include <printf.h>
+
 #define BDA_SERIAL_PORTS 0xC0000400
 
 tty_vc tty_virtual_consoles[TTY_NUM_VCS];
@@ -343,102 +345,10 @@ void tty_switch_vc(tty_vc* tty)
     spinlock_release(&tty->base.lock);
 }
 
-static void tty_write_field(tty_base* tty, const char* msg, uint32 min_length, bool zero_pad, bool left_justify)
+static int tprintf_write_char(void* tty, char c)
 {
-    uint32 length = strlen(msg);
-    
-    while (!left_justify && length < min_length)
-    {
-        length++;
-        tty->write(tty, (zero_pad) ? '0' : ' ');
-    }
-    
-    tty_write(tty, msg);
-    
-    while (left_justify && length < min_length)
-    {
-        length++;
-        tty->write(tty, (zero_pad) ? '0' : ' ');
-    }
-}
-
-static void print_formatted(tty_base* tty, const char** format, char* buf, va_list* vararg)
-{
-    const char* s;
-    int i;
-    long long l;
-    
-    uint32 min_length = 0;
-    bool zero_pad = false;
-    bool left_justify = false;
-    
-    if ((*format)[0] == '-')
-    {
-        *format += 1;
-        left_justify = true;
-    }
-    
-    if ((*format)[0] == '0')
-    {
-        *format += 1;
-        zero_pad = true;
-    }
-    
-    while ((*format)[0] >= '0' && (*format)[0] <= '9')
-    {
-        min_length = (min_length * 10) + (uint32)((*format)[0] - '0');
-        *format += 1;
-    }
-    
-    if ((*format)[0] == 's')
-    {
-        *format += 1;
-        
-        s = va_arg(*vararg, const char*);
-        tty_write_field(tty, s, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == 'd')
-    {
-        *format += 1;
-        
-        i = va_arg(*vararg, int);
-        itoa(i, buf, 10);
-        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == 'x')
-    {
-        *format += 1;
-        
-        i = va_arg(*vararg, int);
-        itoa(i, buf, 16);
-        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == 'l' && (*format)[1] == 'd')
-    {
-        *format += 2;
-        
-        l = va_arg(*vararg, long long);
-        itoa_l(l, buf, 10);
-        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == 'l' && (*format)[1] == 'x')
-    {
-        *format += 2;
-        
-        l = va_arg(*vararg, long long);
-        itoa_l(l, buf, 16);
-        tty_write_field(tty, buf, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == '%')
-    {
-        *format += 1;
-        
-        tty->write(tty, '%');
-    }
-    else
-    {
-        crash("Bad tprintf format string!");
-    }
+    ((tty_base*)tty)->write((tty_base*)tty, c);
+    return E_SUCCESS;
 }
 
 void tprintf(tty_base* tty, const char* format, ...)
@@ -446,26 +356,13 @@ void tprintf(tty_base* tty, const char* format, ...)
     va_list vararg;
     
     va_start(vararg, format);
-    tvprintf(tty, format, vararg);
+    gprintf(format, 0xffffffffu, tty, tprintf_write_char, vararg);
+    tty->flush(tty);
     va_end(vararg);
 }
 
 void tvprintf(tty_base* tty, const char* format, va_list vararg)
 {
-    char ch;
-    char buf[256];
-    
-    while ((ch = *(format++)) != '\0')
-    {
-        if (ch == '%')
-        {
-            print_formatted(tty, &format, buf, &vararg);
-        }
-        else
-        {
-            tty->write(tty, ch);
-        }
-    }
-    
+    gprintf(format, 0xffffffffu, tty, tprintf_write_char, vararg);
     tty->flush(tty);
 }
