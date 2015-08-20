@@ -56,7 +56,7 @@ void kernel_main(multiboot_info* multiboot)
     console_init();
     tty_init();
     
-    tprintf(&tty_virtual_consoles[0].base, "%CfBooting " OS_NAME " " FULL_VERSION_IDENTIFIER "...\n", CONSOLE_COLOR_LIGHT_GRAY);
+    tprintf(&tty_virtual_consoles[0].base, "\33[37mBooting " OS_NAME " " FULL_VERSION_IDENTIFIER "...\n");
     
     // We need the early memory manager to be able to parse the command-line
     // parameters, so initialize that now.

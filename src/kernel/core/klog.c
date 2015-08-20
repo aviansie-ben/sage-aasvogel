@@ -18,15 +18,17 @@ static const char* level_names[] = {
     "DEBUG"
 };
 
-static const console_color level_colors[] = {
-    CONSOLE_COLOR_LIGHT_RED,
-    CONSOLE_COLOR_LIGHT_RED,
-    CONSOLE_COLOR_LIGHT_RED,
-    CONSOLE_COLOR_RED,
-    CONSOLE_COLOR_YELLOW,
-    CONSOLE_COLOR_LIGHT_CYAN,
-    CONSOLE_COLOR_CYAN,
-    CONSOLE_COLOR_GREEN
+static const char* default_color = "37";
+
+static const char* level_colors[] = {
+    "91",
+    "91",
+    "91",
+    "31",
+    "93",
+    "96",
+    "36",
+    "32"
 };
     
 
@@ -43,7 +45,7 @@ void klog_init(const boot_param* param)
 static void log_message(tty_base* tty, uint32 level, const char* format, va_list vararg)
 {
     spinlock_acquire(&tty->lock);
-    tprintf(tty, "%Cf[%Cf%s%Cf] ", CONSOLE_COLOR_LIGHT_GRAY, level_colors[level], level_names[level], CONSOLE_COLOR_LIGHT_GRAY);
+    tprintf(tty, "\33[%sm[\33[%sm%s\33[%sm] ", default_color, level_colors[level], level_names[level], default_color);
     tvprintf(tty, format, vararg);
     spinlock_release(&tty->lock);
 }

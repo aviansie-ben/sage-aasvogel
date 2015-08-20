@@ -12,6 +12,11 @@ static tty_vc* active_vc;
 
 tty_serial tty_serial_consoles[TTY_NUM_SERIAL];
 
+static console_color ansi_color_lookup[8] = {
+    CONSOLE_COLOR_BLACK, CONSOLE_COLOR_RED, CONSOLE_COLOR_GREEN, CONSOLE_COLOR_BROWN,
+    CONSOLE_COLOR_BLUE, CONSOLE_COLOR_MAGENTA, CONSOLE_COLOR_CYAN, CONSOLE_COLOR_LIGHT_GRAY
+};
+
 static void tty_vc_flush(tty_base* base)
 {
     tty_vc* tty = (tty_vc*) base;
@@ -34,8 +39,17 @@ static void tty_vc_clear(tty_base* base)
     for (i = 0; i < (uint32)(base->width * base->height); i++)
     {
         tty->buffer[i].ch = ' ';
-        tty->buffer[i].fore_color = base->fore_color;
-        tty->buffer[i].back_color = base->back_color;
+        
+        if (tty->ansi_inverted)
+        {
+            tty->buffer[i].fore_color = tty->back_color;
+            tty->buffer[i].back_color = tty->fore_color;
+        }
+        else
+        {
+            tty->buffer[i].fore_color = tty->fore_color;
+            tty->buffer[i].back_color = tty->back_color;
+        }
     }
     
     tty->buffer_line = 0;
@@ -43,6 +57,47 @@ static void tty_vc_clear(tty_base* base)
     base->cursor_y = 0;
     
     tty_vc_flush(base);
+}
+
+static void tty_vc_set_mode(tty_vc* tty, int m)
+{
+    if (m == 7)
+        tty->ansi_inverted = true;
+    else if (m == 27)
+        tty->ansi_inverted = false;
+    else if (m == 8)
+        tty->ansi_hidden = true;
+    else if (m == 28)
+        tty->ansi_hidden = false;
+    else if (m >= 30 && m <= 37)
+        tty->fore_color = ansi_color_lookup[m - 30];
+    else if (m >= 90 && m <= 97)
+        tty->fore_color = ansi_color_lookup[m - 90] | 0x8;
+    else if (m >= 40 && m <= 47)
+        tty->back_color = ansi_color_lookup[m - 40];
+    else if (m >= 100 && m <= 107)
+        tty->back_color = ansi_color_lookup[m - 100] | 0x8;
+}
+
+static void tty_vc_ansi_mode_cmd(tty_vc* tty)
+{
+    int i;
+    int m = 0;
+    
+    for (i = 0; i < tty->ansi_cmd_pos; i++)
+    {
+        if (tty->ansi_cmd_buf[i] >= '0' && tty->ansi_cmd_buf[i] <= '9')
+        {
+            m = (m * 10) + (tty->ansi_cmd_buf[i] - '0');
+        }
+        else if (tty->ansi_cmd_buf[i] == ';')
+        {
+            tty_vc_set_mode(tty, m);
+            m = 0;
+        }
+    }
+    
+    tty_vc_set_mode(tty, m);
 }
 
 static void tty_vc_write(tty_base* base, char ch)
@@ -54,6 +109,47 @@ static void tty_vc_write(tty_base* base, char ch)
     assert(base->cursor_x < base->width);
     assert(base->cursor_y < base->height);
     
+    if (ch == '\33')
+    {
+        tty->ansi_cmd_pos = -2;
+        return;
+    }
+    else if (tty->ansi_cmd_pos == -2)
+    {
+        if (ch == '[')
+        {
+            tty->ansi_cmd_pos = 0;
+            return;
+        }
+        else
+        {
+            tty->ansi_cmd_pos = -1;
+        }
+    }
+    else if (tty->ansi_cmd_pos >= 0)
+    {
+        if (ch >= '0' && ch <= '?')
+        {
+            if (tty->ansi_cmd_pos == sizeof(tty->ansi_cmd_buf))
+            {
+                tty->ansi_cmd_pos = -1;
+            }
+            else
+            {
+                tty->ansi_cmd_buf[tty->ansi_cmd_pos++] = ch;
+            }
+        }
+        else
+        {
+            if (ch == 'm')
+                tty_vc_ansi_mode_cmd(tty);
+            
+            tty->ansi_cmd_pos = -1;
+        }
+        
+        return;
+    }
+    
     if (ch == '\n')
     {
         base->cursor_x = 0;
@@ -61,9 +157,18 @@ static void tty_vc_write(tty_base* base, char ch)
     }
     else if (ch >= 0x20)
     {
-        tty->buffer[pos].ch = ch;
-        tty->buffer[pos].fore_color = base->fore_color;
-        tty->buffer[pos].back_color = base->back_color;
+        tty->buffer[pos].ch = (tty->ansi_hidden) ? ' ' : ch;
+        
+        if (tty->ansi_inverted)
+        {
+            tty->buffer[pos].fore_color = tty->back_color;
+            tty->buffer[pos].back_color = tty->fore_color;
+        }
+        else
+        {
+            tty->buffer[pos].fore_color = tty->fore_color;
+            tty->buffer[pos].back_color = tty->back_color;
+        }
         
         base->cursor_x++;
     }
@@ -83,8 +188,17 @@ static void tty_vc_write(tty_base* base, char ch)
             pos = (uint32)(tty->buffer_line * base->width) + i;
             
             tty->buffer[pos].ch = ' ';
-            tty->buffer[pos].fore_color = base->fore_color;
-            tty->buffer[pos].back_color = base->back_color;
+            
+            if (tty->ansi_inverted)
+            {
+                tty->buffer[pos].fore_color = tty->back_color;
+                tty->buffer[pos].back_color = tty->fore_color;
+            }
+            else
+            {
+                tty->buffer[pos].fore_color = tty->fore_color;
+                tty->buffer[pos].back_color = tty->back_color;
+            }
         }
         
         tty->buffer_line = (uint16)(tty->buffer_line + 1) % base->height;
@@ -145,9 +259,13 @@ void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
     tty->base.clear = tty_vc_clear;
     tty->base.write = tty_vc_write;
     
-    tty->base.supports_color = true;
-    tty->base.fore_color = CONSOLE_COLOR_WHITE;
-    tty->base.back_color = CONSOLE_COLOR_BLACK;
+    tty->fore_color = CONSOLE_COLOR_WHITE;
+    tty->back_color = CONSOLE_COLOR_BLACK;
+    
+    tty->ansi_hidden = false;
+    tty->ansi_inverted = false;
+    
+    tty->ansi_cmd_pos = -1;
     
     tty->base.supports_cursor = true;
     tty->base.cursor_x = 0;
@@ -171,7 +289,6 @@ void tty_init_serial(tty_serial* tty, uint16 io_port)
     tty->base.clear = tty_serial_clear;
     tty->base.write = tty_serial_write;
     
-    tty->base.supports_color = false;
     tty->base.supports_cursor = false;
     
     tty->io_port = io_port;
@@ -311,24 +428,6 @@ static void print_formatted(tty_base* tty, const char** format, char* buf, va_li
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 16);
         tty_write_field(tty, buf, min_length, zero_pad, left_justify);
-    }
-    else if ((*format)[0] == 'C' && (*format)[1] == 'f')
-    {
-        *format += 2;
-        
-        i = va_arg(*vararg, console_color);
-        
-        if (tty->supports_color)
-            tty->fore_color = i;
-    }
-    else if ((*format)[0] == 'C' && (*format)[1] == 'b')
-    {
-        *format += 2;
-        
-        i = va_arg(*vararg, console_color);
-        
-        if (tty->supports_color)
-            tty->back_color = i;
     }
     else if ((*format)[0] == '%')
     {

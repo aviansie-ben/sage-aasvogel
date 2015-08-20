@@ -46,8 +46,8 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
     
     tty_switch_vc(&tty_virtual_consoles[0]);
     
-    tty_virtual_consoles[0].base.fore_color = CONSOLE_COLOR_WHITE;
-    tty_virtual_consoles[0].base.back_color = CONSOLE_COLOR_RED;
+    tty_virtual_consoles[0].fore_color = CONSOLE_COLOR_WHITE;
+    tty_virtual_consoles[0].back_color = CONSOLE_COLOR_RED;
     tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
     tty_virtual_consoles[0].base.cursor_hidden = true;
     
@@ -65,8 +65,8 @@ void do_crash_interrupt(const char* msg, const char* file, const char* func, uin
     tty_switch_vc(&tty_virtual_consoles[0]);
     
     spinlock_acquire(&tty_virtual_consoles[0].base.lock);
-    tty_virtual_consoles[0].base.fore_color = CONSOLE_COLOR_WHITE;
-    tty_virtual_consoles[0].base.back_color = CONSOLE_COLOR_RED;
+    tty_virtual_consoles[0].fore_color = CONSOLE_COLOR_WHITE;
+    tty_virtual_consoles[0].back_color = CONSOLE_COLOR_RED;
     tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
     tty_virtual_consoles[0].base.cursor_hidden = true;
     spinlock_release(&tty_virtual_consoles[0].base.lock);
@@ -87,8 +87,8 @@ void do_crash_pagefault(regs32_t* r)
     tty_switch_vc(&tty_virtual_consoles[0]);
     
     spinlock_acquire(&tty_virtual_consoles[0].base.lock);
-    tty_virtual_consoles[0].base.fore_color = CONSOLE_COLOR_WHITE;
-    tty_virtual_consoles[0].base.back_color = CONSOLE_COLOR_RED;
+    tty_virtual_consoles[0].fore_color = CONSOLE_COLOR_WHITE;
+    tty_virtual_consoles[0].back_color = CONSOLE_COLOR_RED;
     tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
     tty_virtual_consoles[0].base.cursor_hidden = true;
     spinlock_release(&tty_virtual_consoles[0].base.lock);
@@ -129,8 +129,8 @@ void do_crash_unhandled_isr(regs32_t* r)
     tty_switch_vc(&tty_virtual_consoles[0]);
     
     spinlock_acquire(&tty_virtual_consoles[0].base.lock);
-    tty_virtual_consoles[0].base.fore_color = CONSOLE_COLOR_WHITE;
-    tty_virtual_consoles[0].base.back_color = CONSOLE_COLOR_RED;
+    tty_virtual_consoles[0].fore_color = CONSOLE_COLOR_WHITE;
+    tty_virtual_consoles[0].back_color = CONSOLE_COLOR_RED;
     tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
     tty_virtual_consoles[0].base.cursor_hidden = true;
     spinlock_release(&tty_virtual_consoles[0].base.lock);
