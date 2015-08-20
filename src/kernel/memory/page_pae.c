@@ -127,9 +127,10 @@ static page_table_pae* _alloc_page_table_global(page_dir_ptr_tab* pdpt, addr_v a
     }
     else
     {
+        uint32 pde_map_begin = ((kmem_early_next_alloc - global_tables) & PD_MASK) >> PD_SHIFT;
         assert(kmem_early_next_alloc <= global_tables + (pde * FRAME_SIZE) - 0xC0000000);
         
-        for (uint32 pde_map = (kmem_early_next_alloc & PD_MASK) >> PD_SHIFT; pde_map <= pde; pde_map++)
+        for (uint32 pde_map = pde_map_begin; pde_map <= pde; pde_map++)
         {
             page_table_pae* pt = (page_table_pae*) (global_tables + pde_map * FRAME_SIZE);
             
@@ -138,11 +139,15 @@ static page_table_pae* _alloc_page_table_global(page_dir_ptr_tab* pdpt, addr_v a
             
             for (size_t i = 0; i < PT_SIZE; i++)
                 pdpt->page_table_virt[pdet]->page_phys[i] = 0;
-            
-            kmem_page_pae_set(&kernel_page_context, (uint32)pt, (uint32)pt - 0xC0000000, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL | PT_ENTRY_PRESENT);
         }
         
         kmem_early_next_alloc = global_tables + ((pde + 1) * FRAME_SIZE) - 0xC0000000;
+        
+        for (uint32 pde_map = pde_map_begin; pde_map <= pde; pde_map++)
+        {
+            page_table_pae* pt = (page_table_pae*) (global_tables + pde_map * FRAME_SIZE);
+            kmem_page_pae_set(&kernel_page_context, (uint32)pt, (uint32)pt - 0xC0000000, PT_ENTRY_NO_EXECUTE | PT_ENTRY_WRITEABLE | PT_ENTRY_GLOBAL | PT_ENTRY_PRESENT);
+        }
     }
     
     return pdpt->page_table_virt[pdet];
