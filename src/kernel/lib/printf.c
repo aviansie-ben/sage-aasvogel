@@ -18,7 +18,7 @@ static int gprintf_str(const char* buf, size_t min_len, bool zero_pad, bool left
         }
     }
     
-    while (*buf != '\0' && *nc < n)
+    while (*buf != '\0')
     {
         if ((*nc)++ < n)
         {
@@ -29,7 +29,7 @@ static int gprintf_str(const char* buf, size_t min_len, bool zero_pad, bool left
         buf++;
     }
     
-    while (left_justify && len < min_len && *nc < n)
+    while (left_justify && len < min_len)
     {
         len++;
         
@@ -113,14 +113,11 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
     else if ((*format)[0] == '%')
     {
         *format += 1;
-        *nc += 1;
         
-        return write(a, '%');
-    }
-    else if ((*format)[0] == 'C' && (*format)[1] != '\0')
-    {
-        i = va_arg(*vararg, int);
-        return write(a, '%');
+        if ((*nc)++ < n)
+            return write(a, '%');
+        else
+            return E_SUCCESS;
     }
     else
     {
@@ -136,7 +133,7 @@ int gprintf(const char* format, size_t n, void* a, gprintf_write_char write, va_
     char buf[256];
     
     nc = 0;
-    while (nc < n && (ch = *(format++)) != '\0')
+    while ((ch = *(format++)) != '\0')
     {
         if (ch == '%')
         {
