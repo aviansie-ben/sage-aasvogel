@@ -8,7 +8,7 @@
 
 #include <core/klog.h>
 
-#define THREAD_STACK_SIZE 0x40000
+#define THREAD_STACK_SIZE 0x4000
 #define THREAD_EFLAGS ((1 << 1) | (1 << 9))
 
 #define PIT_CHANNEL_0_DATA 0x40
