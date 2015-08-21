@@ -39,6 +39,8 @@ static sched_thread_queue sleep_queue;
 static mempool_small process_pool;
 static mempool_small thread_pool;
 
+static mempool_small process_address_space_pool;
+
 void sched_idle(void);
 
 static void init_registers(regs32_saved_t* r, uint32 stack, uint32 entry)
@@ -92,7 +94,7 @@ static sched_thread* alloc_init_thread(sched_process* p)
     return t;
 }
 
-static sched_process* alloc_init_process(const char* name)
+static sched_process* alloc_init_process(const char* name, page_context* address_space)
 {
     sched_process* p = kmem_pool_small_alloc(&process_pool, 0);
     
@@ -105,6 +107,8 @@ static sched_process* alloc_init_process(const char* name)
     
     strncpy(p->name, name, sizeof(p->name) - 1);
     p->name[sizeof(p->name) - 1] = '\0';
+    
+    p->address_space = address_space;
     
     p->next_tid = 0;
     p->first_thread = NULL;
@@ -189,11 +193,12 @@ void sched_init(const boot_param* param)
     
     kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process));
     kmem_pool_small_init(&thread_pool, "sched_thread pool", sizeof(sched_thread), __alignof__(sched_thread));
+    kmem_pool_small_init(&process_address_space_pool, "sched_process page_context", sizeof(page_context), __alignof__(page_context));
     
     sched_process_queue_init(&process_run_queue);
     sched_thread_queue_init(&sleep_queue);
     
-    current_process = first_process = alloc_init_process("kernel");
+    current_process = first_process = alloc_init_process("kernel", &kernel_page_context);
     if (current_process == NULL)
         crash("Failed to initialize kernel process!");
     
@@ -243,10 +248,25 @@ sched_thread* __sched_thread_current(void)
 
 int sched_process_create(const char* name, sched_process** process)
 {
-    sched_process* p = alloc_init_process(name);
+    page_context* c;
+    sched_process* p;
     
-    if (p == NULL)
-        return -1; // TODO Come up with proper error codes
+    if ((c = kmem_pool_small_alloc(&process_address_space_pool, 0)) == NULL)
+    {
+        return E_NO_MEMORY;
+    }
+    
+    if (!kmem_page_context_create(c))
+    {
+        kmem_pool_small_free(&process_address_space_pool, c);
+        return E_NO_MEMORY;
+    }
+    
+    if ((p = alloc_init_process(name, c)) == NULL)
+    {
+        kmem_pool_small_free(&process_address_space_pool, c);
+        return E_NO_MEMORY;
+    }
     
     *process = p;
     return 0;
@@ -518,7 +538,8 @@ void sched_switch_thread(sched_thread* thread, regs32_t* r)
     current_thread = thread;
     current_process = thread->process;
     
-    // TODO Switch address spaces
+    if (current_process->address_space != active_page_context)
+        kmem_page_context_switch(current_process->address_space);
     
     // Wait until registers are fully saved before attempting to acquire the spinlock
     while (current_thread->registers_dirty)

@@ -45,6 +45,8 @@ typedef struct sched_process
     uint64 pid;
     char name[32];
     
+    page_context* address_space;
+    
     uint64 next_tid;
     struct sched_thread* first_thread;
     sched_thread_queue thread_run_queue;
