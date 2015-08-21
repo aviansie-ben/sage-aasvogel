@@ -3,6 +3,7 @@
 
 #include <typedef.h>
 #include <core/bootparam.h>
+#include <lock/mutex.h>
 
 typedef enum
 {
@@ -17,8 +18,12 @@ typedef enum
     KLOG_LEVEL_MAX    = 7
 } klog_level;
 
+extern mutex klog_flush_mutex;
+
 void klog_init(const boot_param* param) __hidden;
+void klog_start_background_thread(void) __hidden;
 
 void klog(uint32 level, const char* format, ...);
+void klog_flush(void);
 
 #endif

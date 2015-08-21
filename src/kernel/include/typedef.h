@@ -25,6 +25,8 @@
 #define __const __attribute__((const))
 #define __warn_unused_result __attribute__((warn_unused_result))
 
+#define alloca(size) __builtin_alloca(size)
+
 #define E_SUCCESS         0
 #define E_NOT_FOUND       1
 #define E_NOT_SUPPORTED   2

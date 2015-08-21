@@ -45,10 +45,15 @@ static void kernel_main2(const boot_param* param)
     
     // Initialize the CPU scheduler
     sched_init(param);
+    klog_start_background_thread();
     
     vfs_init(param);
     
-    hang_soft();
+    while (true)
+    {
+        sched_thread_current()->status = STS_DEAD;
+        sched_yield();
+    }
 }
 
 void kernel_main(multiboot_info* multiboot)
