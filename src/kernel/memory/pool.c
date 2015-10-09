@@ -48,6 +48,32 @@ static mempool_small pool_gen_64;
 static mempool_small pool_gen_128;
 static mempool_small pool_gen_256;
 
+#ifdef MEMPOOL_DEBUG
+static void _fill_deadbeef(uint8* o, size_t size)
+{
+    for (uint8* f = o; (size_t)(f - o) < size; f++)
+    {
+        switch ((f - o) % 4)
+        {
+            case 0:
+                *f = 0xef;
+                break;
+            case 1:
+                *f = 0xbe;
+                break;
+            case 2:
+                *f = 0xad;
+                break;
+            case 3:
+                *f = 0xde;
+                break;
+        }
+    }
+}
+#else
+#define _fill_deadbeef(o, s) ((void)(o), (void)(s))
+#endif
+
 static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
 {
     mempool_small_part* p;
@@ -218,6 +244,7 @@ void* kmem_pool_small_alloc(mempool_small* pool, frame_alloc_flags flags)
     
     spinlock_release(&pool->lock);
     
+    _fill_deadbeef((uint8*)s, pool->obj_size);
     return (void*)s;
 }
 
@@ -244,6 +271,7 @@ void kmem_pool_small_free(mempool_small* pool, void* obj)
     else if (!_small_pool_part_is_allocated(p, obj))
         crash("Attempt to free an already freed object from a pool!");
     
+    _fill_deadbeef((uint8*)obj, pool->obj_size);
     s = (mempool_fixed_free_slot*)obj;
     s->next = p->first_free;
     p->first_free = s;

@@ -67,6 +67,9 @@ static sched_thread* alloc_init_thread(sched_process* p)
     
     t->status = STS_READY;
     
+    spinlock_init(&t->registers_lock);
+    t->registers_dirty = false;
+    
     t->stack_low = t->stack_high = NULL;
     t->in_queue = NULL;
     
@@ -80,6 +83,8 @@ static sched_thread* alloc_init_thread(sched_process* p)
         sched_thread_enqueue(&p->thread_run_queue, t);
         spinlock_release(&p->thread_run_queue.lock);
     }
+    
+    t->held_mutexes = NULL;
     
 #ifdef SCHED_DEBUG
     t->creation = ticks;
