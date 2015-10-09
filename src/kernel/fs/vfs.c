@@ -1,3 +1,5 @@
+#define ALLOW_UNSAFE_NODE_REFCOUNT
+
 #include <fs/vfs.h>
 
 #include <core/crash.h>
@@ -414,6 +416,11 @@ void vfs_node_ref(vfs_node* node)
 {
     if (__atomic_fetch_add(&node->refcount, 1, __ATOMIC_SEQ_CST) == 0)
         crash("vfs_node refcount race detected!");
+}
+
+void vfs_node_ref_unsafe(vfs_node* node)
+{
+    __atomic_fetch_add(&node->refcount, 1, __ATOMIC_SEQ_CST);
 }
 
 void vfs_node_unref(vfs_node* node)

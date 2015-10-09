@@ -1021,9 +1021,10 @@ extern uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char*
  * 
  * If the reference count of the requested node is 0, then the system will crash as a result. This
  * is usually a sign of a race condition, since a node may be removed from the cache at any time if
- * its reference count is 0. If it is normal for the reference count to potentially be 0, (i.e. the
- * node is being read from a cache before it was disposed) then this should be detected and handled
- * externally.
+ * its reference count is 0. If it is possible that the reference count could be 0 and you are
+ * **absolutely sure** this is normal, (i.e. you are a filesystem driver and are doing caching with
+ * nodes that have a refcount of 0) you can use \link vfs_node_ref_unsafe \endlink to suppress this
+ * behaviour.
  * 
  * \warning When copying a reference which may be discarded by another thread, it is important to
  *          protect that reference with a lock which prevents it from being discarded during the
@@ -1033,6 +1034,30 @@ extern uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char*
  * \param[in] node The node which is being referenced.
  */
 extern void vfs_node_ref(vfs_node* node);
+
+#if defined(ALLOW_UNSAFE_NODE_REFCOUNT) || defined(DOXYGEN_GENERATOR)
+/**
+ * \brief Atomically increments the reference count of a node without performing any race condition
+ *        checking.
+ * 
+ * Unlike \link vfs_node_ref \endlink, this function **does not** crash the system if the reference
+ * count of the node was originally 0. You must define a macro called ALLOW_UNSAFE_NODE_REFCOUNT
+ * before including this file if you intend to use this function. Attempting to use this function
+ * without doing so will result in a compiler error.
+ * 
+ * \warning This function should be used only where it is normal for a node's reference count to
+ *          potentially be 0. This means that it should only be used by filesystem drivers for the
+ *          purposes of caching. Without extra precautions, incrementing the reference count of a
+ *          node when it is 0 is **extremely dangerous** and is almost certainly the result of a
+ *          race condition. Use \link vfs_node_ref \endlink wherever possible to ensure that race
+ *          conditions are caught.
+ * 
+ * \param[in] node The node which is being referenced.
+ */
+extern void vfs_node_ref_unsafe(vfs_node* node);
+#else
+#define vfs_node_ref_unsafe(n) _Static_assert(0, "Attempt to use vfs_node_ref_unsafe without defining ALLOW_UNSAFE_NODE_REFCOUNT")
+#endif
 
 /**
  * \brief Atomically decrements the reference count of a node.
