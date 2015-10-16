@@ -143,7 +143,7 @@ void do_crash_pagefault(regs32_t* r)
     }
     
     tprintf(&tty_virtual_consoles[0].base, "\n\nStack Trace:\n");
-    tprintf(&tty_serial_consoles[0].base, "\nStack Trace:\n", fault_address, address_name);
+    tprintf(&tty_serial_consoles[0].base, "\nStack Trace:\n");
     unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
     hang();
