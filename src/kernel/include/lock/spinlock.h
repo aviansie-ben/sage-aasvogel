@@ -60,7 +60,7 @@ void eflags_load(uint32 eflags);
 /**
  * \brief Initializes the given spinlock to a state in which it is not held.
  * 
- * \param[in] spinlock The spinlock which should be initialized.
+ * \param spinlock The spinlock which should be initialized.
  */
 void spinlock_init(spinlock* lock);
 
@@ -81,7 +81,7 @@ void spinlock_init(spinlock* lock);
  *          Spinlocks are not released when a thread is suspended, which could result in the new
  *          thread deadlocking if it attempts to acquire the same spinlock.
  * 
- * \param[in] spinlock The spinlock to acquire.
+ * \param spinlock The spinlock to acquire.
  */
 void spinlock_acquire(spinlock* lock);
 
@@ -92,7 +92,9 @@ void spinlock_acquire(spinlock* lock);
  * This function will never busy-wait to acquire a spinlock, and will simply return immediately if
  * it fails to acquire the spinlock on the first attempt.
  * 
- * \param[in] spinlock The spinlock to attempt to acquire.
+ * \param spinlock The spinlock to attempt to acquire.
+ * 
+ * \return true if the spinlock was acquired successfully, false otherwise.
  */
 bool spinlock_try_acquire(spinlock* lock) __warn_unused_result;
 
@@ -111,6 +113,8 @@ bool spinlock_try_acquire(spinlock* lock) __warn_unused_result;
  *          spinlock and is restored when releasing the same spinlock. Releasing spinlocks in the
  *          incorrect order could result in the EFLAGS register being in an unexpected state, which
  *          could result in interrupts being disabled when they shouldn't.
+ * 
+ * \param spinlock The spinlock to release.
  */
 void spinlock_release(spinlock* lock);
 
