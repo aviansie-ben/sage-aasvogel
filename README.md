@@ -12,13 +12,13 @@ This is an experimental OS designed solely for educational purposes. I am not in
 
 Before building Sage Aasvogel, you first need to have built a proper cross compiler for the `i686-elf` platform. The tested development environment uses GCC 4.9.2 and GNU Binutils 2.25. The `i686-elf-gcc` and `i686-elf-ld` commands must also be in your `PATH` environment variable.
 
-Once you have all the required programs installed, you can build the entire Sage Aasvogel project by running the `build-all.sh` script. This will build all components of the system and then run the `create-image.sh` to package a new floppy image for testing. By default, the image is packaged in the project directory as `sa.img`, but this can be changed in the script.
+Once you have all the required programs installed, you can build the entire Sage Aasvogel project by running `make all`. After this, you should run `sudo make image` to actually package the floppy image in order to boot Sage Aasvogel. The resulting image will be stored in `sa.img` in the project directory.
 
-Note that the creation of the floppy disk image using `create-image.sh` requires root permissions in order to be able to mount the disk image as a loopback device. If you run `create-image.sh` as a non-root user, it will automatically attempt to run itself as root using `sudo` or `gksudo` if the script is run without a TTY, e.g. when run by an IDE.
+Note that the creation of the floppy disk image using `make image` requires root permissions in order to be able to mount the disk image as a loopback device.
 
 ## Testing Sage Aasvogel
 
-The preferred method for testing Sage Aasvogel is by using a system emulator such as [qemu](http://www.qemu.org/) with an attached debugger. The included `emulate.sh` script will start qemu with 64MiB of RAM and the floppy disk image `sa.img` mounted on the first floppy drive. Once started, qemu will listen on port `1234` for a debugger to connect.
+The preferred method for testing Sage Aasvogel is by using a system emulator such as [qemu](http://www.qemu.org/) with an attached debugger. Running `make emulate` will start qemu with 64MiB of RAM and the floppy disk image `sa.img` mounted on the first floppy drive. Once started, qemu will listen on port `1234` for a debugger to connect.
 
 ## License
 
