@@ -27,6 +27,9 @@
 
 #define alloca(size) __builtin_alloca(size)
 
+#define REALLY_PASTE(x,y) x##y
+#define PASTE(x,y) REALLY_PASTE(x,y)
+
 #define E_SUCCESS         0
 #define E_NOT_FOUND       1
 #define E_NOT_SUPPORTED   2
