@@ -77,14 +77,14 @@ typedef struct refcounter
 
 // Please forgive me for this...
 #define with_refcounted(name, p) \
-    for (struct { bool out_done; bool in_done; typeof(p) pointer; } PASTE(__wr_, __LINE__) = { false, false, p }; ; PASTE(__wr_, __LINE__).out_done = true) \
-        if (PASTE(__wr_, __LINE__).out_done) \
+    for (struct { bool done; typeof(p) pointer; } PASTE(__wr_, __LINE__) = { false, p };;) \
+        if (PASTE(__wr_, __LINE__).done) \
         { \
             if (PASTE(__wr_, __LINE__).pointer != NULL) \
                 refcount_dec(&PASTE(__wr_, __LINE__).pointer->refcount); \
             break; \
         } \
         else \
-            for (name = PASTE(__wr_, __LINE__).pointer; !PASTE(__wr_, __LINE__).in_done; PASTE(__wr_, __LINE__).in_done = true)
+            for (name = PASTE(__wr_, __LINE__).pointer; !PASTE(__wr_, __LINE__).done; PASTE(__wr_, __LINE__).done = true)
 
 #endif
