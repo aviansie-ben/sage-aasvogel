@@ -159,7 +159,7 @@ void kmem_page_pae_init(const boot_param* param)
     
     // Intialize the PDPT pool (It cannot be used yet, but it can be initialized
     // before the memory manager is fully ready)
-    kmem_pool_small_init(&pdpt_pool, "page_dir_ptr_tab pool", sizeof(page_dir_ptr_tab), __alignof__(page_dir_ptr_tab));
+    kmem_pool_small_init(&pdpt_pool, "page_dir_ptr_tab pool", sizeof(page_dir_ptr_tab), __alignof__(page_dir_ptr_tab), FA_32BIT);
     
     // If the CPU supports the NX bit, we should enable it now
     use_nx = !cmdline_get_bool(param, "no_nx") && msr_is_supported() && cpuid_supports_feature_ext_edx(CPUID_FEATURE_EXT_EDX_NX);
@@ -217,7 +217,6 @@ bool kmem_page_pae_context_create(page_context* c, bool kernel_table)
     {
         addr_p phys;
         
-        // TODO Ensure only low physical addresses are allocated for a PDPT
         c->pae_pdpt = kmem_pool_small_alloc(&pdpt_pool, 0);
         if (c->pae_pdpt == NULL) return false;
         

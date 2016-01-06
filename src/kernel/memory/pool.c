@@ -40,6 +40,7 @@ typedef struct
     mempool_map mappings[FRAME_SIZE / sizeof(mempool_map)];
 } mempool_map_table;
 
+frame_alloc_flags mapping_frame_flags = FA_EMERG;
 mempool_map_table* mapping_tables[(0x40000 * sizeof(mempool_map)) / sizeof(mempool_map_table)];
 
 static mempool_small pool_gen_16;
@@ -94,7 +95,7 @@ static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
         
         if (mapping_tables[table] == NULL)
         {
-            mapping_tables[table] = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, 1);
+            mapping_tables[table] = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, mapping_frame_flags, 1);
             
             if (mapping_tables[table] == NULL)
             {
@@ -166,7 +167,7 @@ static bool _small_pool_part_is_allocated(mempool_small_part* part, void* obj)
     return s == NULL;
 }
 
-void kmem_pool_small_init(mempool_small* pool, const char* name, uint32 obj_size, uint32 obj_align)
+void kmem_pool_small_init(mempool_small* pool, const char* name, uint32 obj_size, uint32 obj_align, frame_alloc_flags frame_flags)
 {
     // When slots are free, a mempool_fixed_free_slot will be stored in place of
     // an actual object.
@@ -183,6 +184,7 @@ void kmem_pool_small_init(mempool_small* pool, const char* name, uint32 obj_size
     
     pool->frames_per_part = 1; // TODO Reconsider this...
     pool->part_first_offset = -(sizeof(mempool_small_part) & (obj_align - 1));
+    pool->frame_flags = frame_flags;
     
     pool->num_total = pool->num_free = 0;
     
@@ -220,7 +222,7 @@ void* kmem_pool_small_alloc(mempool_small* pool, frame_alloc_flags flags)
     else
     {
         if (pool->parts_empty == NULL)
-            _small_pool_part_alloc(pool, flags);
+            _small_pool_part_alloc(pool, flags | pool->frame_flags);
         
         p = pool->parts_empty;
         
@@ -311,11 +313,11 @@ void kmem_pool_small_compact(mempool_small* pool)
 
 void kmem_pool_generic_init(void)
 {
-    kmem_pool_small_init(&pool_gen_16, "generic_16", 16, 4);
-    kmem_pool_small_init(&pool_gen_32, "generic_32", 32, 4);
-    kmem_pool_small_init(&pool_gen_64, "generic_64", 64, 4);
-    kmem_pool_small_init(&pool_gen_128, "generic_128", 128, 4);
-    kmem_pool_small_init(&pool_gen_256, "generic_256", 256, 4);
+    kmem_pool_small_init(&pool_gen_16, "generic_16", 16, 4, 0);
+    kmem_pool_small_init(&pool_gen_32, "generic_32", 32, 4, 0);
+    kmem_pool_small_init(&pool_gen_64, "generic_64", 64, 4, 0);
+    kmem_pool_small_init(&pool_gen_128, "generic_128", 128, 4, 0);
+    kmem_pool_small_init(&pool_gen_256, "generic_256", 256, 4, 0);
 }
 
 void* kmem_pool_generic_alloc(size_t size, frame_alloc_flags flags)

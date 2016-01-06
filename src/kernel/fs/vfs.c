@@ -36,8 +36,8 @@ mempool_small vfs_device_pool;
 void vfs_init(const boot_param* param)
 {
     // Initialize the memory pools
-    kmem_pool_small_init(&vfs_node_pool, "vfs_node", sizeof(vfs_node), __alignof__(vfs_node));
-    kmem_pool_small_init(&vfs_device_pool, "fs_device", sizeof(fs_device), __alignof__(fs_device));
+    kmem_pool_small_init(&vfs_node_pool, "vfs_node", sizeof(vfs_node), __alignof__(vfs_node), 0);
+    kmem_pool_small_init(&vfs_device_pool, "fs_device", sizeof(fs_device), __alignof__(fs_device), 0);
     
     // TODO: Mount initrd
 }

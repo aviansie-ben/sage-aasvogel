@@ -196,9 +196,9 @@ void sched_init(const boot_param* param)
 {
     spinlock_init(&first_process_spinlock);
     
-    kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process));
-    kmem_pool_small_init(&thread_pool, "sched_thread pool", sizeof(sched_thread), __alignof__(sched_thread));
-    kmem_pool_small_init(&process_address_space_pool, "sched_process page_context", sizeof(page_context), __alignof__(page_context));
+    kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process), 0);
+    kmem_pool_small_init(&thread_pool, "sched_thread pool", sizeof(sched_thread), __alignof__(sched_thread), 0);
+    kmem_pool_small_init(&process_address_space_pool, "sched_process page_context", sizeof(page_context), __alignof__(page_context), 0);
     
     sched_process_queue_init(&process_run_queue);
     sched_thread_queue_init(&sleep_queue);
