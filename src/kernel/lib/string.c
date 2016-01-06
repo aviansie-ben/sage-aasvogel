@@ -160,7 +160,7 @@ char* itoa_l(long long val, char* s, unsigned int base)
 
 long long strtonum(const char* str, long long minval, long long maxval, bool* error)
 {
-    long long val = 0;
+    unsigned long long acc = 0;
     bool neg = false;
     
     if (*str == '-')
@@ -168,6 +168,10 @@ long long strtonum(const char* str, long long minval, long long maxval, bool* er
         neg = true;
         str++;
     }
+    
+    unsigned long long cutoff = neg ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+    int cutlim = (int)(cutoff % 10);
+    cutoff /= 10;
     
     if (*str == '\0')
     {
@@ -183,21 +187,36 @@ long long strtonum(const char* str, long long minval, long long maxval, bool* er
             return 0;
         }
         
-        // TODO: Detect overflows
-        val = (val * 10) + (*str - '0');
+        int c = *str - '0';
+        
+        if (acc > cutoff || (acc == cutoff && c > cutlim))
+        {
+            if (error != NULL) *error = true;
+            return neg ? minval : maxval;
+        }
+        
+        acc *= 10;
+        acc += (unsigned long long) c;
         
         str++;
     }
     
-    if (val < minval || val > maxval)
+    long long val = (long long)(neg ? -acc : acc);
+    
+    if (val < minval)
     {
         if (error != NULL) *error = true;
-        return 0;
+        return minval;
+    }
+    else if (val > maxval)
+    {
+        if (error != NULL) *error = true;
+        return maxval;
     }
     else
     {
         if (error != NULL) *error = false;
-        return neg ? -val : val;
+        return val;
     }
 }
 

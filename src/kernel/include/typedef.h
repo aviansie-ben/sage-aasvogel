@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <limits.h>
 
 // Some features (e.g. assert) require that __PRETTY_FUNCTION__ be defined. If we
 // aren't using gcc, we should fall back to __func__.
