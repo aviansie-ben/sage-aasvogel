@@ -288,7 +288,7 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     void** stack_high = stack_low + THREAD_STACK_SIZE / sizeof(void*);
     
     if (stack_low == NULL)
-        return -1; // TODO Come up with proper error codes
+        return E_NO_MEMORY;
     
     klog(KLOG_LEVEL_DEBUG, "Allocated stack from 0x%x to 0x%x (size %d)\n", stack_low, stack_high, THREAD_STACK_SIZE);
     
@@ -301,7 +301,7 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     {
         spinlock_release(&process->lock);
         kmem_page_global_free(stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
-        return -1; // TODO Come up with proper error codes
+        return E_NO_MEMORY;
     }
     
     init_registers(&t->registers, (uint32)(stack_high - 2), (uint32)func);
@@ -311,7 +311,7 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
     if (thread != NULL)
         *thread = t;
     
-    return 0;
+    return E_SUCCESS;
 }
 
 void sched_thread_destroy(sched_thread* thread)
