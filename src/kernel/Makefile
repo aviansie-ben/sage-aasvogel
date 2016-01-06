@@ -41,7 +41,7 @@ clean:
 	-@$(RM) -rf $(DOC_DIR)
 
 todolist:
-	-@for file in $(ALL_FILES:Makefile=); do fgrep -H -e TODO $$file; done; true
+	-@for file in $(ALL_FILES:Makefile=); do fgrep -H -n -e TODO $$file; done; true
 
 dist:
 	@tar czf kernel.tgz $(patsubst $(SRC_DIR)/%,%,$(ALL_FILES))
