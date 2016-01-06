@@ -209,7 +209,11 @@ isrs_without_error_code 0, 7
 isr_with_error_code 8
 isr_without_error_code 9
 isrs_with_error_code 10, 14
-isrs_without_error_code 15, 31
+isrs_without_error_code 15, 16
+isr_with_error_code 17
+isrs_without_error_code 18, 29
+isr_with_error_code 30
+isr_without_error_code 31
 
 .macro irq n
 .type irq_&n&, @function
