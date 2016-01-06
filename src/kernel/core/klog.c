@@ -58,12 +58,11 @@ static klog_buf* buf_tail;
 
 void klog_init(const boot_param* param)
 {
-    // TODO: Read these from the boot command-line
     log_console = &tty_virtual_consoles[0];
-    log_console_level = KLOG_LEVEL_DEBUG;
+    log_console_level = (uint32) cmdline_get_int(param, "klog_console_level", KLOG_LEVEL_MIN, KLOG_LEVEL_MAX, KLOG_LEVEL_INFO);
     
-    log_serial = &tty_serial_consoles[0];
-    log_serial_level = KLOG_LEVEL_DEBUG;
+    log_serial = &tty_serial_consoles[cmdline_get_int(param, "klog_serial_port", 0, TTY_NUM_SERIAL - 1, 0)];
+    log_serial_level = (uint32) cmdline_get_int(param, "klog_serial_level", KLOG_LEVEL_MIN, KLOG_LEVEL_MAX, KLOG_LEVEL_DISABLE);
     
     mutex_init(&klog_flush_mutex);
     semaphore_init(&buf_semaphore, 0);
@@ -92,7 +91,7 @@ void klog_start_background_thread(void)
 static void log_message_tty(tty_base* tty, uint32 level, const char* msg)
 {
     spinlock_acquire(&tty->lock);
-    tprintf(tty, "\33[%sm[\33[%sm%s\33[%sm] %s", default_color, level_colors[level], level_names[level], default_color, msg);
+    tprintf(tty, "\33[%sm[\33[%sm%s\33[%sm] %s", default_color, level_colors[level - 1], level_names[level - 1], default_color, msg);
     spinlock_release(&tty->lock);
 }
 

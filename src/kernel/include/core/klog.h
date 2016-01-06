@@ -7,15 +7,17 @@
 
 typedef enum
 {
-    KLOG_LEVEL_EMERG  = 0,
-    KLOG_LEVEL_ALERT  = 1,
-    KLOG_LEVEL_CRIT   = 2,
-    KLOG_LEVEL_ERR    = 3,
-    KLOG_LEVEL_WARN   = 4,
-    KLOG_LEVEL_NOTICE = 5,
-    KLOG_LEVEL_INFO   = 6,
-    KLOG_LEVEL_DEBUG  = 7,
-    KLOG_LEVEL_MAX    = 7
+    KLOG_LEVEL_MIN     = 0,
+    KLOG_LEVEL_DISABLE = 0,
+    KLOG_LEVEL_EMERG   = 1,
+    KLOG_LEVEL_ALERT   = 2,
+    KLOG_LEVEL_CRIT    = 3,
+    KLOG_LEVEL_ERR     = 4,
+    KLOG_LEVEL_WARN    = 5,
+    KLOG_LEVEL_NOTICE  = 6,
+    KLOG_LEVEL_INFO    = 7,
+    KLOG_LEVEL_DEBUG   = 8,
+    KLOG_LEVEL_MAX     = 8
 } klog_level;
 
 extern mutex klog_flush_mutex;

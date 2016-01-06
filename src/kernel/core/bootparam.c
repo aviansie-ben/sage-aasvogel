@@ -1,5 +1,6 @@
 #include <core/bootparam.h>
 #include <memory/early.h>
+#include <string.h>
 
 static uint32 cmdline_preparse(char* cmdline)
 {
@@ -92,4 +93,35 @@ bool cmdline_get_bool(const boot_param* param, const char* param_name)
     }
     
     return false;
+}
+
+const char* cmdline_get_str(const boot_param* param, const char* param_name, const char* def_value)
+{
+    size_t i;
+    const char* part;
+    const char* pn_part;
+    
+    for (i = 0; i < param->num_cmdline_parts; i++)
+    {
+        part = param->cmdline_parts[i];
+        
+        for (pn_part = param_name; *pn_part != '\0' && *pn_part == *part; pn_part++, part++) ;
+        
+        if (*pn_part == '\0' && *part == '=')
+            return part + 1;
+    }
+    
+    return def_value;
+}
+
+int32 cmdline_get_int(const boot_param* param, const char* param_name, int32 min_value, int32 max_value, int32 def_value)
+{
+    const char* str_value = cmdline_get_str(param, param_name, NULL);
+    
+    if (str_value == NULL) return def_value;
+    
+    bool error;
+    int32 int_value = (int32) strtonum(str_value, min_value, max_value, &error);
+    
+    return error ? def_value : int_value;
 }

@@ -158,6 +158,49 @@ char* itoa_l(long long val, char* s, unsigned int base)
     return s;
 }
 
+long long strtonum(const char* str, long long minval, long long maxval, bool* error)
+{
+    long long val = 0;
+    bool neg = false;
+    
+    if (*str == '-')
+    {
+        neg = true;
+        str++;
+    }
+    
+    if (*str == '\0')
+    {
+        if (error != NULL) *error = true;
+        return 0;
+    }
+    
+    while (*str != '\0')
+    {
+        if (*str < '0' || *str > '9')
+        {
+            if (error != NULL) *error = true;
+            return 0;
+        }
+        
+        // TODO: Detect overflows
+        val = (val * 10) + (*str - '0');
+        
+        str++;
+    }
+    
+    if (val < minval || val > maxval)
+    {
+        if (error != NULL) *error = true;
+        return 0;
+    }
+    else
+    {
+        if (error != NULL) *error = false;
+        return neg ? -val : val;
+    }
+}
+
 void* memmove(void* dest, const void* src, size_t size)
 {
     uint8* dest8 = dest;
