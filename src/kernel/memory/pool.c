@@ -7,6 +7,7 @@
 
 #define MAP_TYPE_NONE 0
 #define MAP_TYPE_SMALL 1
+#define MAP_TYPE_FRAMES 2
 
 typedef struct mempool_fixed_free_slot
 {
@@ -32,6 +33,11 @@ typedef struct
     union
     {
         mempool_small* pool_small;
+        struct
+        {
+            uint32 num_frames;
+            addr_v first_frame_address;
+        };
     };
 } mempool_map;
 
@@ -75,6 +81,17 @@ static void _fill_deadbeef(uint8* o, size_t size)
 #define _fill_deadbeef(o, s) ((void)(o), (void)(s))
 #endif
 
+static mempool_map* _get_mapping(addr_v address, bool create)
+{
+    uint32 table = ((address - 0xc0000000) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
+    uint32 map = ((address - 0xc0000000) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+    
+    if (mapping_tables[table] == NULL && create)
+        mapping_tables[table] = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, mapping_frame_flags, 1);
+    
+    return mapping_tables[table] != NULL ? &mapping_tables[table]->mappings[map] : NULL;
+}
+
 static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
 {
     mempool_small_part* p;
@@ -90,31 +107,22 @@ static void _small_pool_part_alloc(mempool_small* pool, frame_alloc_flags flags)
     
     for (i = 0; i < pool->frames_per_part; i++)
     {
-        uint32 table = (((uint32)p - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
-        uint32 map = (((uint32)p - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+        mempool_map* map = _get_mapping((addr_v)p + (i * FRAME_SIZE), true);
         
-        if (mapping_tables[table] == NULL)
+        if (map == NULL)
         {
-            mapping_tables[table] = kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, mapping_frame_flags, 1);
-            
-            if (mapping_tables[table] == NULL)
+            for (j = 0; j < i; j++)
             {
-                for (j = 0; j < i; j++)
-                {
-                    table = (((uint32)p - 0xc0000000 + (j * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
-                    map = (((uint32)p - 0xc0000000 + (j * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
-                    
-                    mapping_tables[table]->mappings[map].type = MAP_TYPE_NONE;
-                    mapping_tables[table]->mappings[map].pool_small = NULL;
-                }
-                
-                kmem_page_global_free(p, pool->frames_per_part);
-                return;
+                map = _get_mapping((addr_v)p + j * FRAME_SIZE, false);
+                map->type = MAP_TYPE_NONE;
             }
+            
+            kmem_page_global_free(p, pool->frames_per_part);
+            return;
         }
         
-        mapping_tables[table]->mappings[map].type = MAP_TYPE_SMALL;
-        mapping_tables[table]->mappings[map].pool_small = pool;
+        map->type = MAP_TYPE_SMALL;
+        map->pool_small = pool;
     }
     
     p->pool = pool;
@@ -142,11 +150,10 @@ static void _small_pool_part_free(mempool_small* pool, mempool_small_part* part,
     
     for (size_t i = 0; i < pool->frames_per_part; i++)
     {
-        uint32 table = (((uint32)part - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
-        uint32 map = (((uint32)part - 0xc0000000 + (i * FRAME_SIZE)) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+        mempool_map* map = _get_mapping((addr_v)part + (i * FRAME_SIZE), false);
+        assert(map != NULL && map->type == MAP_TYPE_SMALL && map->pool_small == pool);
         
-        mapping_tables[table]->mappings[map].type = MAP_TYPE_NONE;
-        mapping_tables[table]->mappings[map].pool_small = NULL;
+        map->type = MAP_TYPE_NONE;
     }
     
     if (prev_part != NULL) prev_part->next_part = part->next_part;
@@ -333,22 +340,67 @@ void* kmem_pool_generic_alloc(size_t size, frame_alloc_flags flags)
     else if (size <= 256)
         return kmem_pool_small_alloc(&pool_gen_256, flags);
     else
-        crash("TODO: Allow generic allocations over 256 bytes");
+    {
+        // TODO Use space more efficiently!
+        
+        uint32 num_pages = (size + FRAME_SIZE - 1) / FRAME_SIZE;
+        addr_v address = (addr_v) kmem_page_global_alloc(PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, flags, num_pages);
+        
+        if (address == 0) return NULL;
+        
+        for (uint32 i = 0; i < num_pages; i++)
+        {
+            mempool_map* map = _get_mapping(address + i * FRAME_SIZE, true);
+            
+            if (map == NULL)
+            {
+                for (uint32 j = 0; j < num_pages; j++)
+                {
+                    map = _get_mapping(address + j * FRAME_SIZE, false);
+                    map->type = MAP_TYPE_NONE;
+                }
+                
+                kmem_page_global_free((void*) address, num_pages);
+                return NULL;
+            }
+            
+            map->type = MAP_TYPE_FRAMES;
+            map->num_frames = num_pages;
+            map->first_frame_address = address;
+        }
+        
+        _fill_deadbeef((uint8*) address, num_pages * FRAME_SIZE);
+        return (void*) address;
+    }
 }
 
 void kmem_pool_generic_free(void* obj)
 {
     assert((uint32)obj >= 0xc0000000);
     
-    uint32 table = (((uint32)obj - 0xc0000000) / FRAME_SIZE) / (FRAME_SIZE / sizeof(mempool_map));
-    uint32 map = (((uint32)obj - 0xc0000000) / FRAME_SIZE) % (FRAME_SIZE / sizeof(mempool_map));
+    mempool_map* map = _get_mapping((addr_v) obj, false);
     
-    if (mapping_tables[table] == NULL || mapping_tables[table]->mappings[map].type == MAP_TYPE_NONE)
+    if (map == NULL || map->type == MAP_TYPE_NONE)
         crash("Attempt to free an object which isn't in memory allocated to a pool!");
     
-    if (mapping_tables[table]->mappings[map].type == MAP_TYPE_SMALL)
+    if (map->type == MAP_TYPE_SMALL)
     {
-        kmem_pool_small_free(mapping_tables[table]->mappings[map].pool_small, obj);
+        kmem_pool_small_free(map->pool_small, obj);
+    }
+    else if (map->type == MAP_TYPE_FRAMES)
+    {
+        addr_v address = map->first_frame_address;
+        uint32 num_frames = map->num_frames;
+        
+        for (uint32 i = 0; i < num_frames; i++)
+        {
+            map = _get_mapping(address + i * FRAME_SIZE, false);
+            assert(map != NULL && map->type == MAP_TYPE_FRAMES && map->num_frames == num_frames && map->first_frame_address == address);
+            
+            map->type = MAP_TYPE_NONE;
+        }
+        
+        kmem_page_global_free((void*) address, num_frames);
     }
     else
     {
