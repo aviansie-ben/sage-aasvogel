@@ -221,43 +221,27 @@ void kmem_page_global_free(void* addr, uint32 num_pages)
         kmem_frame_free(frames[i]);
 }
 
-bool kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags)
+bool _kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags)
 {
-    bool result;
-    
-    spinlock_acquire(&c->lock);
-    
-    if (kmem_page_pae_enabled) result = kmem_page_pae_get(c, virtual_address, physical_address, flags);
+    if (kmem_page_pae_enabled) return kmem_page_pae_get(c, virtual_address, physical_address, flags);
     else crash("Legacy paging not implemented!");
-    
-    spinlock_release(&c->lock);
-    return result;
 }
 
-bool kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
+bool _kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
 {
     bool result;
-    
-    if (!kmem_page_pae_enabled && c == &kernel_page_context)
-        return kmem_page_global_map(virtual_address, flags, flush, frame);
     
     if (!kmem_page_pge_enabled) flags &= (uint64)~PT_ENTRY_GLOBAL;
     
-    spinlock_acquire(&c->lock);
-    
     if (kmem_page_pae_enabled) result = kmem_page_pae_set(c, virtual_address, frame, flags | PT_ENTRY_PRESENT);
     else crash("Legacy paging not implemented!");
-    
-    spinlock_release(&c->lock);
     
     if (result && flush) kmem_page_flush_one(virtual_address);
     return result;
 }
 
-void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush)
+void _kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush)
 {
-    spinlock_acquire(&c->lock);
-    
     if (kmem_page_pae_enabled)
     {
         if (kmem_page_pae_get(c, virtual_address, NULL, NULL))
@@ -268,32 +252,89 @@ void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush)
         crash("Legacy paging not implemented!");
     }
     
-    spinlock_release(&c->lock);
     if (flush) kmem_page_flush_one(virtual_address);
 }
 
-bool kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags)
+bool _kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags)
 {
-    return kmem_page_get(&kernel_page_context, virtual_address, physical_address, flags);
+    return _kmem_page_get(&kernel_page_context, virtual_address, physical_address, flags);
 }
 
-bool kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
+bool _kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
 {
     if (kmem_page_pae_enabled)
-        return kmem_page_map(&kernel_page_context, virtual_address, flags, flush, frame);
+        return _kmem_page_map(&kernel_page_context, virtual_address, flags, flush, frame);
     
     crash("Legacy paging not implemented!");
 }
 
-void kmem_page_global_unmap(addr_v virtual_address, bool flush)
+void _kmem_page_global_unmap(addr_v virtual_address, bool flush)
 {
     if (kmem_page_pae_enabled)
     {
-        kmem_page_unmap(&kernel_page_context, virtual_address, flush);
+        _kmem_page_unmap(&kernel_page_context, virtual_address, flush);
         return;
     }
     
     crash("Legacy paging not implemented!");
+}
+
+bool kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags)
+{
+    bool result;
+    
+    spinlock_acquire(&c->lock);
+    result = _kmem_page_get(c, virtual_address, physical_address, flags);
+    spinlock_release(&c->lock);
+    
+    return result;
+}
+
+bool kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
+{
+    bool result;
+    
+    spinlock_acquire(&c->lock);
+    result = _kmem_page_map(c, virtual_address, flags, flush, frame);
+    spinlock_release(&c->lock);
+    
+    return result;
+}
+
+void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush)
+{
+    spinlock_acquire(&c->lock);
+    _kmem_page_unmap(c, virtual_address, flush);
+    spinlock_release(&c->lock);
+}
+
+bool kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags)
+{
+    bool result;
+    
+    spinlock_acquire(&kernel_page_context.lock);
+    result = _kmem_page_global_get(virtual_address, physical_address, flags);
+    spinlock_release(&kernel_page_context.lock);
+    
+    return result;
+}
+
+bool kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame)
+{
+    bool result;
+    
+    spinlock_acquire(&kernel_page_context.lock);
+    result = _kmem_page_global_map(virtual_address, flags, flush, frame);
+    spinlock_release(&kernel_page_context.lock);
+    
+    return result;
+}
+
+void kmem_page_global_unmap(addr_v virtual_address, bool flush)
+{
+    spinlock_acquire(&kernel_page_context.lock);
+    _kmem_page_global_unmap(virtual_address, flush);
+    spinlock_release(&kernel_page_context.lock);
 }
 
 void kmem_page_flush_one(addr_v virtual_address)

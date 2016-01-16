@@ -99,6 +99,14 @@ void kmem_page_context_switch(page_context* c);
 void* kmem_page_global_alloc(uint64 page_flags, frame_alloc_flags alloc_flags, uint32 num_pages) __warn_unused_result;
 void kmem_page_global_free(void* addr, uint32 num_pages);
 
+bool _kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags) __hidden __pure __warn_unused_result;
+bool _kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame) __hidden __warn_unused_result;
+void _kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush) __hidden;
+
+bool _kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags) __hidden __pure __warn_unused_result;
+bool _kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame) __hidden __warn_unused_result;
+void _kmem_page_global_unmap(addr_v virtual_address, bool flush) __hidden;
+
 bool kmem_page_get(page_context* c, addr_v virtual_address, addr_p* physical_address, uint64* flags) __pure __warn_unused_result;
 bool kmem_page_map(page_context* c, addr_v virtual_address, uint64 flags, bool flush, addr_p frame) __warn_unused_result;
 void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush);
