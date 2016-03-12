@@ -23,7 +23,7 @@
  * be used instead of spinlocks, as such mechanisms will release the CPU if they cannot acquire the
  * lock rather than busy-waiting.
  */
-typedef struct
+typedef struct spinlock
 {
     /**
      * \brief A value that represents whether or not the spinlock is currently taken.

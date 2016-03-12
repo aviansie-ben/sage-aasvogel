@@ -2,28 +2,34 @@
 #include <string.h>
 #include <core/crash.h>
 
-static int gprintf_str(const char* buf, size_t min_len, bool zero_pad, bool left_justify, size_t* nc, size_t n, void* a, gprintf_write_char write)
+static int gprintf_str(const char* buf, size_t min_len, size_t max_len, bool zero_pad, bool left_justify, size_t* nc, size_t n, void* a, gprintf_write_char write)
 {
     int err;
     uint32 len = strlen(buf);
+    
+    if (max_len == 0) max_len = 0xffffffffu;
     
     while (!left_justify && len < min_len)
     {
         len++;
         
-        if ((*nc)++ < n)
+        if ((*nc)++ < n && max_len != 0)
         {
             err = write(a, (zero_pad) ? '0' : ' ');
             if (err != E_SUCCESS) return err;
+            
+            max_len--;
         }
     }
     
     while (*buf != '\0')
     {
-        if ((*nc)++ < n)
+        if ((*nc)++ < n && max_len != 0)
         {
             err = write(a, *buf);
             if (err != E_SUCCESS) return err;
+            
+            max_len--;
         }
         
         buf++;
@@ -33,10 +39,12 @@ static int gprintf_str(const char* buf, size_t min_len, bool zero_pad, bool left
     {
         len++;
         
-        if ((*nc)++ < n)
+        if ((*nc)++ < n && max_len != 0)
         {
             err = write(a, (zero_pad) ? '0' : ' ');
             if (err != E_SUCCESS) return err;
+            
+            max_len--;
         }
     }
     
@@ -47,9 +55,11 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
 {
     const char* s;
     int i;
+    unsigned int u;
     long long l;
     
     size_t min_length = 0;
+    size_t precision = 0;
     bool zero_pad = false;
     bool left_justify = false;
     
@@ -71,12 +81,22 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
         *format += 1;
     }
     
+    if ((*format)[0] == '.')
+    {
+        *format += 1;
+        while ((*format)[0] >= '0' && (*format)[0] <= '9')
+        {
+            precision = (precision * 10) + (uint32)((*format)[0] - '0');
+            *format += 1;
+        }
+    }
+    
     if ((*format)[0] == 's')
     {
         *format += 1;
         
         s = va_arg(*vararg, const char*);
-        return gprintf_str(s, min_length, zero_pad, left_justify, nc, n, a, write);
+        return gprintf_str(s, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
     else if ((*format)[0] == 'd')
     {
@@ -84,15 +104,23 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
         
         i = va_arg(*vararg, int);
         itoa(i, buf, 10);
-        return gprintf_str(buf, min_length, zero_pad, left_justify, nc, n, a, write);
+        return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
-    else if ((*format)[0] == 'x')
+    else if ((*format)[0] == 'u')
+    {
+        *format += 1;
+        
+        u = va_arg(*vararg, unsigned int);
+        itoa_l(u, buf, 10);
+        return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
+    }
+    else if ((*format)[0] == 'x' || (*format)[0] == 'X')
     {
         *format += 1;
         
         i = va_arg(*vararg, int);
         itoa(i, buf, 16);
-        return gprintf_str(buf, min_length, zero_pad, left_justify, nc, n, a, write);
+        return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
     else if ((*format)[0] == 'l' && (*format)[1] == 'd')
     {
@@ -100,15 +128,15 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
         
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 10);
-        return gprintf_str(buf, min_length, zero_pad, left_justify, nc, n, a, write);
+        return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
-    else if ((*format)[0] == 'l' && (*format)[1] == 'x')
+    else if ((*format)[0] == 'l' && ((*format)[1] == 'x' || (*format)[1] == 'X'))
     {
         *format += 2;
         
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 16);
-        return gprintf_str(buf, min_length, zero_pad, left_justify, nc, n, a, write);
+        return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
     else if ((*format)[0] == '%')
     {

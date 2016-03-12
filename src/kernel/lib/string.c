@@ -47,7 +47,12 @@ size_t strlen(const char* str)
 
 int strcmp(const char* s1, const char* s2)
 {
-    while (*s1 != '\0' && *s2 != '\0')
+    return strncmp(s1, s2, 0xffffffffu);
+}
+
+int strncmp(const char* s1, const char* s2, size_t n)
+{
+    while (n != 0 && *s1 != '\0' && *s2 != '\0')
     {
         if (*s1 < *s2)
             return -1;
@@ -56,9 +61,12 @@ int strcmp(const char* s1, const char* s2)
         
         s1++;
         s2++;
+        n--;
     }
     
-    if (*s1 == '\0' && *s2 != '\0')
+    if (n == 0)
+        return 0;
+    else if (*s1 == '\0' && *s2 != '\0')
         return 1;
     else if (*s1 != '\0' && *s2 == '\0')
         return -1;
@@ -158,10 +166,53 @@ char* itoa_l(long long val, char* s, unsigned int base)
     return s;
 }
 
-long long strtonum(const char* str, long long minval, long long maxval, bool* error)
+static unsigned long long __strtounum(const char** str, unsigned long long max, unsigned int base, bool* error)
 {
     unsigned long long acc = 0;
+    
+    unsigned long long cutoff = max / base;
+    unsigned int cutlim = (unsigned int)(max % base);
+    
+    if (**str == '\0')
+    {
+        if (error != NULL) *error = true;
+        return 0;
+    }
+    
+    while (**str != '\0')
+    {
+        unsigned int val;
+        
+        if (**str >= '0' && **str <= '9')
+            val = (unsigned int)(**str - '0');
+        else if (**str >= 'A' && **str <= 'Z')
+            val = (unsigned int)(**str - 'A' + 10);
+        else if (**str >= 'a' && **str <= 'z')
+            val = (unsigned int)(**str - 'a' + 10);
+        else
+            break;
+        
+        if (val >= base)
+            break;
+        
+        if (acc > cutoff || (acc == cutoff && val > cutlim))
+        {
+            if (error != NULL) *error = true;
+            return max;
+        }
+        
+        acc = (acc * base) + val;
+        (*str)++;
+    }
+    
+    return acc;
+}
+
+long long strtonum(const char* str, long long minval, long long maxval, bool* error)
+{
+    long long acc;
     bool neg = false;
+    bool error2;
     
     if (*str == '-')
     {
@@ -169,55 +220,38 @@ long long strtonum(const char* str, long long minval, long long maxval, bool* er
         str++;
     }
     
-    unsigned long long cutoff = neg ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
-    int cutlim = (int)(cutoff % 10);
-    cutoff /= 10;
+    acc = (long long) __strtounum(&str, LLONG_MAX, 10, &error2);
+    if (neg) acc = -acc;
     
-    if (*str == '\0')
+    if (error2 || *str != '\0')
     {
         if (error != NULL) *error = true;
-        return 0;
+        return acc;
     }
-    
-    while (*str != '\0')
-    {
-        if (*str < '0' || *str > '9')
-        {
-            if (error != NULL) *error = true;
-            return 0;
-        }
-        
-        int c = *str - '0';
-        
-        if (acc > cutoff || (acc == cutoff && c > cutlim))
-        {
-            if (error != NULL) *error = true;
-            return neg ? minval : maxval;
-        }
-        
-        acc *= 10;
-        acc += (unsigned long long) c;
-        
-        str++;
-    }
-    
-    long long val = (long long)(neg ? -acc : acc);
-    
-    if (val < minval)
-    {
-        if (error != NULL) *error = true;
-        return minval;
-    }
-    else if (val > maxval)
+    else if (acc > maxval)
     {
         if (error != NULL) *error = true;
         return maxval;
     }
-    else
+    else if (acc < minval)
     {
-        if (error != NULL) *error = false;
-        return val;
+        if (error != NULL) *error = true;
+        return minval;
     }
+    
+    if (error != NULL) *error = false;
+    return acc;
+    
+}
+
+unsigned long strtoul(const char* src, char** endptr, int base)
+{
+    unsigned long acc;
+    
+    acc = (unsigned long) __strtounum(&src, ULONG_MAX, (unsigned int) base, NULL);
+    
+    if (endptr != NULL) *endptr = (char*) src;
+    return acc;
 }
 
 void* memmove(void* dest, const void* src, size_t size)
@@ -269,4 +303,19 @@ void* memset(void* ptr, int val, size_t size)
     }
     
     return ptr;
+}
+
+int memcmp(const void* p1, const void* p2, size_t size)
+{
+    const uint8* p1_b = p1;
+    const uint8* p2_b = p2;
+    
+    while (size != 0 && *p1_b == *p2_b)
+    {
+        size--;
+        p1_b++;
+        p2_b++;
+    }
+    
+    return size == 0 ? 0 : (*p1_b - *p2_b);
 }

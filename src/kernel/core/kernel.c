@@ -23,6 +23,8 @@
 
 #include <fs/vfs.h>
 
+#include <acpica/acpi.h>
+
 static boot_param gparam;
 
 void kernel_main(multiboot_info* multiboot);
@@ -48,6 +50,12 @@ static void kernel_main2(const boot_param* param)
     klog_start_background_thread();
     
     vfs_init(param);
+    
+    ACPI_STATUS status;
+    status = AcpiInitializeSubsystem();
+    status = AcpiInitializeTables(NULL, 16, FALSE);
+    status = AcpiLoadTables();
+    status = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
     
     while (true)
     {
