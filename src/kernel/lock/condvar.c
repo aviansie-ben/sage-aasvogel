@@ -66,3 +66,56 @@ void cond_var_broadcast(cond_var* v)
     
     spinlock_release(&v->wait_queue.lock);
 }
+
+void cond_var_s_init(cond_var_s* v, spinlock* l)
+{
+    v->lock = l;
+    sched_thread_queue_init(&v->wait_queue);
+}
+
+void cond_var_s_wait(cond_var_s* v, mutex* m)
+{
+    sched_thread* t = sched_thread_current();
+    uint32 eflags;
+    
+    spinlock_acquire(&v->wait_queue.lock);
+    
+    t->status = STS_BLOCKING;
+    sched_thread_enqueue(&v->wait_queue, t);
+    
+    spinlock_release(&v->wait_queue.lock);
+    if (v->lock != NULL) eflags = _spinlock_release(v->lock);
+    if (m != NULL) mutex_release(m);
+    
+    sched_yield();
+    if (m != NULL) mutex_acquire(m);
+    if (v->lock != NULL) _spinlock_acquire(v->lock, eflags);
+}
+
+void cond_var_s_signal(cond_var_s* v)
+{
+    sched_thread* t;
+    
+    spinlock_acquire(&v->wait_queue.lock);
+    
+    if ((t = sched_thread_dequeue(&v->wait_queue)) != NULL)
+    {
+        sched_thread_wake(t);
+    }
+    
+    spinlock_release(&v->wait_queue.lock);
+}
+
+void cond_var_s_broadcast(cond_var_s* v)
+{
+    sched_thread* t;
+    
+    spinlock_acquire(&v->wait_queue.lock);
+    
+    while ((t = sched_thread_dequeue(&v->wait_queue)) != NULL)
+    {
+        sched_thread_wake(t);
+    }
+    
+    spinlock_release(&v->wait_queue.lock);
+}
