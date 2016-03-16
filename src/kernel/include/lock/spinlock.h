@@ -64,6 +64,8 @@ void eflags_load(uint32 eflags);
  */
 void spinlock_init(spinlock* lock);
 
+void _spinlock_acquire(spinlock* lock, uint32 eflags);
+
 /**
  * \brief Acquires the given spinlock. If the spinlock is already held, waits until it is release
  *        to acquire it.
@@ -83,7 +85,9 @@ void spinlock_init(spinlock* lock);
  * 
  * \param spinlock The spinlock to acquire.
  */
-void spinlock_acquire(spinlock* lock);
+static inline void spinlock_acquire(spinlock* lock) { _spinlock_acquire(lock, eflags_save()); }
+
+bool _spinlock_try_acquire(spinlock* lock, uint32 eflags);
 
 /**
  * \brief Attempts to acquire the given spinlock. If the spinlock is already held, gives up and
@@ -96,7 +100,9 @@ void spinlock_acquire(spinlock* lock);
  * 
  * \return true if the spinlock was acquired successfully, false otherwise.
  */
-bool spinlock_try_acquire(spinlock* lock) __warn_unused_result;
+static inline __warn_unused_result bool spinlock_try_acquire(spinlock* lock) { return _spinlock_try_acquire(lock, eflags_save()); }
+
+uint32 _spinlock_release(spinlock* lock);
 
 /**
  * \brief Releases the given spinlock, allowing another processor to acquire it.
@@ -116,6 +122,6 @@ bool spinlock_try_acquire(spinlock* lock) __warn_unused_result;
  * 
  * \param spinlock The spinlock to release.
  */
-void spinlock_release(spinlock* lock);
+static inline void spinlock_release(spinlock* lock) { eflags_load(_spinlock_release(lock)); }
 
 #endif

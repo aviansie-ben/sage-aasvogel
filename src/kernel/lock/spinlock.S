@@ -43,13 +43,11 @@ spinlock_init:
     ret
 .size spinlock_init, .-spinlock_init
 
-.globl spinlock_acquire
-.type spinlock_acquire, @function
-spinlock_acquire:
+.globl _spinlock_acquire
+.type _spinlock_acquire, @function
+_spinlock_acquire:
     push ebp
     mov ebp, esp
-    pushfd # Store the old EFLAGS register for later. This is used to restore
-           # the interrupt flag in spinlock_release.
     
     cli # A thread must not be interrupted while it is attempting to acquire or
         # when it has acquired a spinlock.
@@ -75,22 +73,20 @@ spinlock_acquire:
     # when spinlock_release is called. The carry flag will not be stored, and
     # will always be replaced with a 1, since that bit of the spinlock
     # information is used for testing a lock.
-    mov ecx, [ebp - 4]
+    mov ecx, [ebp + 12]
     or ecx, 1
     mov [eax], ecx
     
     mov esp, ebp
     pop ebp
     ret
-.size spinlock_acquire, .-spinlock_acquire
+.size _spinlock_acquire, .-_spinlock_acquire
 
-.globl spinlock_try_acquire
-.type spinlock_try_acquire, @function
-spinlock_try_acquire:
+.globl _spinlock_try_acquire
+.type _spinlock_try_acquire, @function
+_spinlock_try_acquire:
     push ebp
     mov ebp, esp
-    pushfd # Store the old EFLAGS register for later. This is used to restore
-           # the interrupt flag in spinlock_release.
     
     cli # A thread must not be interrupted while it is attempting to acquire or
         # when it has acquired a spinlock.
@@ -101,7 +97,9 @@ spinlock_try_acquire:
     jnc .Lta_cleanup
     
     # We have failed to acquire the lock, so give up.
+    push [ebp + 12]
     popfd
+    
     mov esp, ebp
     pop ebp
     mov eax, 0
@@ -112,7 +110,7 @@ spinlock_try_acquire:
     # when spinlock_release is called. The carry flag will not be stored, and
     # will always be replaced with a 1, since that bit of the spinlock
     # information is used for testing a lock.
-    mov ecx, [ebp - 4]
+    mov ecx, [ebp + 12]
     or ecx, 1
     mov [eax], ecx
     
@@ -120,29 +118,23 @@ spinlock_try_acquire:
     pop ebp
     mov eax, 1
     ret
-.size spinlock_try_acquire, .-spinlock_try_acquire
+.size _spinlock_try_acquire, .-_spinlock_try_acquire
 
-.globl spinlock_release
-.type spinlock_release, @function
-spinlock_release:
+.globl _spinlock_release
+.type _spinlock_release, @function
+_spinlock_release:
     push ebp
     mov ebp, esp
-    sub esp, 4
     
-    mov eax, [ebp + 8]
+    mov ecx, [ebp + 8]
     
     # Read the old EFLAGS value.
-    mov ecx, [eax]
-    mov [ebp - 4], ecx
+    mov eax, [ecx]
     
     # Free the lock.
-    mov dword ptr [eax], 0
-    
-    # Restore the old EFLAGS value. This will re-enable interrupts if they were
-    # disabled by spinlock_acquire.
-    popfd
+    mov dword ptr [ecx], 0
     
     mov esp, ebp
     pop ebp
     ret
-.size spinlock_release, .-spinlock_release
+.size _spinlock_release, .-_spinlock_release
