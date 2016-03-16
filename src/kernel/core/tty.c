@@ -4,9 +4,14 @@
 #include <assert.h>
 #include <string.h>
 
+#include <core/idt.h>
+#include <memory/pool.h>
+#include <core/klog.h>
+
 #include <printf.h>
 
 #define BDA_SERIAL_PORTS 0xC0000400
+#define SERIAL_RECV_BUF_SIZE 8192
 
 tty_vc tty_virtual_consoles[TTY_NUM_VCS];
 static console_char tty_vc_buffers[TTY_NUM_VCS][CONSOLE_WIDTH * CONSOLE_HEIGHT];
@@ -207,6 +212,11 @@ static void tty_vc_write(tty_base* base, char ch)
     }
 }
 
+static void tty_vc_read(tty_base* base)
+{
+    crash("Not yet implemented!");
+}
+
 static void tty_serial_flush(tty_base* base)
 {
     // Do nothing
@@ -231,26 +241,62 @@ static void tty_serial_write(tty_base* base, char ch)
     }
 }
 
-void tty_init(void)
+static char tty_serial_read(tty_base* base)
 {
-    uint32 i;
+    tty_serial* tty = (tty_serial*) base;
     
-    for (i = 0; i < TTY_NUM_VCS; i++)
+    if (tty->io_port != 0)
     {
-        tty_init_vc(&tty_virtual_consoles[i], tty_vc_buffers[i], CONSOLE_WIDTH, CONSOLE_HEIGHT);
+        while (tty->recv_buf_len == 0) cond_var_s_wait(&tty->recv_buf_ready, NULL);
+        
+        char data = tty->recv_buf[tty->recv_buf_tail++];
+        tty->recv_buf_len--;
+        
+        if (tty->recv_buf_tail >= tty->recv_buf_maxlen) tty->recv_buf_tail -= tty->recv_buf_maxlen;
+        
+        switch (data)
+        {
+            case '\r':
+                return '\n';
+            case '\x7f':
+                return '\b';
+            default:
+                return data;
+        }
     }
-    
-    tty_virtual_consoles[0].is_active = true;
-    tty_virtual_consoles[0].base.flush(&tty_virtual_consoles[0].base);
-    active_vc = &tty_virtual_consoles[0];
-    
-    for (i = 0; i < TTY_NUM_SERIAL; i++)
+    else
     {
-        tty_init_serial(&tty_serial_consoles[i], *(((uint16*) BDA_SERIAL_PORTS) + i));
+        crash("Attempt to read from a disconnected serial TTY!");
     }
 }
 
-void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
+static void tty_serial_handle_interrupt(tty_serial* tty)
+{
+    if (tty->io_port == 0) return;
+    
+    uint32 int_type = (inb((uint16)(tty->io_port + 2)) >> 1) & 0x7;
+    
+    if (int_type == 0x2 || int_type == 0x6)
+    {
+        spinlock_acquire(&tty->base.lock);
+        while (inb((uint16)(tty->io_port + 5)) & 0x1)
+        {
+            char data = (char) inb(tty->io_port);
+            
+            if (tty->recv_buf_len < tty->recv_buf_maxlen)
+            {
+                tty->recv_buf[tty->recv_buf_head++] = data;
+                tty->recv_buf_len++;
+                
+                if (tty->recv_buf_head > tty->recv_buf_maxlen) tty->recv_buf_head -= tty->recv_buf_maxlen;
+            }
+        }
+        cond_var_s_broadcast(&tty->recv_buf_ready);
+        spinlock_release(&tty->base.lock);
+    }
+}
+
+static void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
 {
     spinlock_init(&tty->base.lock);
     
@@ -260,6 +306,7 @@ void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
     tty->base.flush = tty_vc_flush;
     tty->base.clear = tty_vc_clear;
     tty->base.write = tty_vc_write;
+    tty->base.read = tty_vc_read;
     
     tty->fore_color = CONSOLE_COLOR_WHITE;
     tty->back_color = CONSOLE_COLOR_BLACK;
@@ -279,7 +326,7 @@ void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
     tty->is_active = false;
 }
 
-void tty_init_serial(tty_serial* tty, uint16 io_port)
+static void tty_init_serial(tty_serial* tty, uint16 io_port)
 {
     spinlock_init(&tty->base.lock);
     
@@ -290,10 +337,18 @@ void tty_init_serial(tty_serial* tty, uint16 io_port)
     tty->base.flush = tty_serial_flush;
     tty->base.clear = tty_serial_clear;
     tty->base.write = tty_serial_write;
+    tty->base.read = tty_serial_read;
     
     tty->base.supports_cursor = false;
     
     tty->io_port = io_port;
+    
+    tty->recv_buf = NULL;
+    tty->recv_buf_len = 0;
+    tty->recv_buf_maxlen = 0;
+    tty->recv_buf_head = 0;
+    tty->recv_buf_tail = 0;
+    cond_var_s_init(&tty->recv_buf_ready, &tty->base.lock);
     
     if (io_port != 0)
     {
@@ -311,9 +366,69 @@ void tty_init_serial(tty_serial* tty, uint16 io_port)
         
         // Enable FIFO
         outb((uint16)(io_port + 2), 0xC7);
+    }
+}
+
+static void tty_init_serial_interrupts(tty_serial* tty)
+{
+    if (tty->io_port != 0)
+    {
+        // Allocate space for the serial receive buffer
+        tty->recv_buf = kmem_pool_generic_alloc(SERIAL_RECV_BUF_SIZE, 0);
+        if (tty->recv_buf == NULL)
+            crash("Failed to allocate serial TTY receive buffer!");
         
-        // Enable interrupts
-        outb((uint16)(io_port + 1), 0x0B);
+        tty->recv_buf_maxlen = SERIAL_RECV_BUF_SIZE;
+        
+        // Enable interrupts for when received data is available
+        outb((uint16)(tty->io_port + 1), 0x01);
+    }
+}
+
+static void tty_serial_interrupt_1_3(regs32* r)
+{
+    tty_serial_handle_interrupt(&tty_serial_consoles[0]);
+    tty_serial_handle_interrupt(&tty_serial_consoles[2]);
+}
+
+static void tty_serial_interrupt_2_4(regs32* r)
+{
+    tty_serial_handle_interrupt(&tty_serial_consoles[1]);
+    tty_serial_handle_interrupt(&tty_serial_consoles[3]);
+}
+
+void tty_init(void)
+{
+    uint32 i;
+    
+    for (i = 0; i < TTY_NUM_VCS; i++)
+    {
+        tty_init_vc(&tty_virtual_consoles[i], tty_vc_buffers[i], CONSOLE_WIDTH, CONSOLE_HEIGHT);
+    }
+    
+    tty_virtual_consoles[0].is_active = true;
+    tty_virtual_consoles[0].base.flush(&tty_virtual_consoles[0].base);
+    active_vc = &tty_virtual_consoles[0];
+    
+    for (i = 0; i < TTY_NUM_SERIAL; i++)
+    {
+        tty_init_serial(&tty_serial_consoles[i], *(((uint16*) BDA_SERIAL_PORTS) + i));
+    }
+}
+
+void tty_init_interrupts(void)
+{
+    uint32 i;
+    
+    idt_register_irq_handler(3, tty_serial_interrupt_2_4);
+    idt_register_irq_handler(4, tty_serial_interrupt_1_3);
+    
+    idt_set_irq_enabled(3, true);
+    idt_set_irq_enabled(4, true);
+    
+    for (i = 0; i < TTY_NUM_SERIAL; i++)
+    {
+        tty_init_serial_interrupts(&tty_serial_consoles[i]);
     }
 }
 

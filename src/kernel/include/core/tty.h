@@ -3,6 +3,7 @@
 
 #include <core/console.h>
 #include <lock/spinlock.h>
+#include <lock/condvar.h>
 #include <stdarg.h>
 
 #define TTY_NUM_VCS 5
@@ -17,6 +18,7 @@ typedef struct tty_base
     void (*flush)(struct tty_base*);
     void (*clear)(struct tty_base*);
     void (*write)(struct tty_base*, char);
+    char (*read)(struct tty_base*);
     
     bool supports_cursor;
     uint16 cursor_x, cursor_y;
@@ -46,6 +48,13 @@ typedef struct
 {
     tty_base base;
     
+    char* recv_buf;
+    int recv_buf_len;
+    int recv_buf_maxlen;
+    int recv_buf_head;
+    int recv_buf_tail;
+    cond_var_s recv_buf_ready;
+    
     uint16 io_port;
 } tty_serial;
 
@@ -53,8 +62,7 @@ extern tty_vc tty_virtual_consoles[TTY_NUM_VCS];
 extern tty_serial tty_serial_consoles[TTY_NUM_SERIAL];
 
 extern void tty_init(void) __hidden;
-extern void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height);
-extern void tty_init_serial(tty_serial* tty, uint16 io_port);
+extern void tty_init_interrupts(void) __hidden;
 
 extern void tty_write(tty_base* tty, const char* msg);
 

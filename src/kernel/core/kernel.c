@@ -49,6 +49,9 @@ static void kernel_main2(const boot_param* param)
     sched_init(param);
     klog_start_background_thread();
     
+    // Now that the scheduler is ready, we can enable interrupts for TTYs
+    tty_init_interrupts();
+    
     vfs_init(param);
     
     ACPI_STATUS status;
