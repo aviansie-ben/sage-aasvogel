@@ -75,7 +75,13 @@ static void klog_background_thread(void* a)
         semaphore_wait(&buf_semaphore);
         
         mutex_acquire(&klog_flush_mutex);
+        if (log_console != NULL) mutex_acquire(&log_console->base.lock);
+        if (log_serial != NULL) mutex_acquire(&log_serial->base.lock);
+        
         klog_flush();
+        
+        if (log_serial != NULL) mutex_release(&log_serial->base.lock);
+        if (log_console != NULL) mutex_release(&log_console->base.lock);
         mutex_release(&klog_flush_mutex);
     }
 }
@@ -90,9 +96,7 @@ void klog_start_background_thread(void)
 
 static void log_message_tty(tty_base* tty, uint32 level, const char* msg)
 {
-    spinlock_acquire(&tty->lock);
     tprintf(tty, "\33[%sm[\33[%sm%s\33[%sm] %s", default_color, level_colors[level - 1], level_names[level - 1], default_color, msg);
-    spinlock_release(&tty->lock);
 }
 
 static void log_message(uint32 level, const char* msg)

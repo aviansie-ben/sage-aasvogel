@@ -7,6 +7,7 @@
 
 #include <core/ksym.h>
 #include <core/klog.h>
+#include <core/serial.h>
 
 static bool lookup_name(unsigned int address, char* out, uint32 flags)
 {
@@ -49,6 +50,7 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
 {
     asm volatile ("cli");
     
+    serial_stop_interrupts();
     klog_flush();
     tty_switch_vc(&tty_virtual_consoles[0]);
     
@@ -68,6 +70,7 @@ void do_crash_interrupt(const char* msg, const char* file, const char* func, uin
 {
     asm volatile ("cli");
     
+    serial_stop_interrupts();
     klog_flush();
     tty_switch_vc(&tty_virtual_consoles[0]);
     
@@ -92,6 +95,7 @@ void do_crash_pagefault(regs32_t* r)
     asm volatile ("cli");
     asm volatile ("movl %%cr2, %0" : "=r" (fault_address));
     
+    serial_stop_interrupts();
     klog_flush();
     tty_switch_vc(&tty_virtual_consoles[0]);
     
@@ -153,14 +157,14 @@ void do_crash_unhandled_isr(regs32_t* r)
 {
     asm volatile ("cli");
     
+    serial_stop_interrupts();
+    klog_flush();
     tty_switch_vc(&tty_virtual_consoles[0]);
     
-    spinlock_acquire(&tty_virtual_consoles[0].base.lock);
     tty_virtual_consoles[0].fore_color = CONSOLE_COLOR_WHITE;
     tty_virtual_consoles[0].back_color = CONSOLE_COLOR_RED;
     tty_virtual_consoles[0].base.clear(&tty_virtual_consoles[0].base);
     tty_virtual_consoles[0].base.cursor_hidden = true;
-    spinlock_release(&tty_virtual_consoles[0].base.lock);
     
     tprintf(&tty_virtual_consoles[0].base, "Sage Aasvogel has crashed!\n  Unexpected ISR: 0x%x\n\nStack Trace:\n", r->int_no);
     tprintf(&tty_serial_consoles[0].base, "Kernel has crashed: unhandled isr 0x%x\nStack Trace:\n", r->int_no);

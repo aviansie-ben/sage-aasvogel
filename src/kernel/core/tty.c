@@ -1,17 +1,9 @@
 #include <core/tty.h>
 #include <core/console.h>
-#include <hwio.h>
 #include <assert.h>
 #include <string.h>
 
-#include <core/idt.h>
-#include <memory/pool.h>
-#include <core/klog.h>
-
 #include <printf.h>
-
-#define BDA_SERIAL_PORTS 0xC0000400
-#define SERIAL_RECV_BUF_SIZE 8192
 
 tty_vc tty_virtual_consoles[TTY_NUM_VCS];
 static console_char tty_vc_buffers[TTY_NUM_VCS][CONSOLE_WIDTH * CONSOLE_HEIGHT];
@@ -212,7 +204,7 @@ static void tty_vc_write(tty_base* base, char ch)
     }
 }
 
-static void tty_vc_read(tty_base* base)
+static char tty_vc_read(tty_base* base)
 {
     crash("Not yet implemented!");
 }
@@ -231,74 +223,50 @@ static void tty_serial_write(tty_base* base, char ch)
 {
     tty_serial* tty = (tty_serial*) base;
     
-    if (tty->io_port != 0)
+    spinlock_acquire(&tty->port->lock);
+    switch (ch)
     {
-        if (ch == '\n')
-            tty_serial_write(base, '\r');
-        
-        while ((inb((uint16) (tty->io_port + 5)) & 0x20) == 0) ;
-        outb(tty->io_port, (uint8)ch);
+        case '\n':
+            serial_send(tty->port, "\r\n", 2, &base->lock);
+            break;
+        case '\b':
+            serial_send(tty->port, "\b \b", 3, &base->lock);
+            break;
+        default:
+            serial_send(tty->port, &ch, 1, &base->lock);
+            break;
     }
+    spinlock_release(&tty->port->lock);
 }
 
 static char tty_serial_read(tty_base* base)
 {
     tty_serial* tty = (tty_serial*) base;
     
-    if (tty->io_port != 0)
-    {
-        while (tty->recv_buf_len == 0) cond_var_s_wait(&tty->recv_buf_ready, NULL);
-        
-        char data = tty->recv_buf[tty->recv_buf_tail++];
-        tty->recv_buf_len--;
-        
-        if (tty->recv_buf_tail >= tty->recv_buf_maxlen) tty->recv_buf_tail -= tty->recv_buf_maxlen;
-        
-        switch (data)
-        {
-            case '\r':
-                return '\n';
-            case '\x7f':
-                return '\b';
-            default:
-                return data;
-        }
-    }
-    else
-    {
-        crash("Attempt to read from a disconnected serial TTY!");
-    }
-}
-
-static void tty_serial_handle_interrupt(tty_serial* tty)
-{
-    if (tty->io_port == 0) return;
+    char c;
     
-    uint32 int_type = (inb((uint16)(tty->io_port + 2)) >> 1) & 0x7;
-    
-    if (int_type == 0x2 || int_type == 0x6)
+    spinlock_acquire(&tty->port->lock);
+    if (serial_receive(tty->port, &c, 1, &base->lock) != E_SUCCESS)
     {
-        spinlock_acquire(&tty->base.lock);
-        while (inb((uint16)(tty->io_port + 5)) & 0x1)
-        {
-            char data = (char) inb(tty->io_port);
-            
-            if (tty->recv_buf_len < tty->recv_buf_maxlen)
-            {
-                tty->recv_buf[tty->recv_buf_head++] = data;
-                tty->recv_buf_len++;
-                
-                if (tty->recv_buf_head > tty->recv_buf_maxlen) tty->recv_buf_head -= tty->recv_buf_maxlen;
-            }
-        }
-        cond_var_s_broadcast(&tty->recv_buf_ready);
-        spinlock_release(&tty->base.lock);
+        spinlock_release(&tty->port->lock);
+        return '\0';
+    }
+    spinlock_release(&tty->port->lock);
+    
+    switch (c)
+    {
+        case '\r':
+            return '\n';
+        case '\x7f':
+            return '\b';
+        default:
+            return c;
     }
 }
 
 static void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 height)
 {
-    spinlock_init(&tty->base.lock);
+    mutex_init(&tty->base.lock);
     
     tty->base.width = width;
     tty->base.height = height;
@@ -326,9 +294,9 @@ static void tty_init_vc(tty_vc* tty, console_char* buffer, uint16 width, uint16 
     tty->is_active = false;
 }
 
-static void tty_init_serial(tty_serial* tty, uint16 io_port)
+static void tty_init_serial(tty_serial* tty, uint32 port_number)
 {
-    spinlock_init(&tty->base.lock);
+    mutex_init(&tty->base.lock);
     
     // TODO: Find values for these?
     tty->base.width = 0;
@@ -341,60 +309,7 @@ static void tty_init_serial(tty_serial* tty, uint16 io_port)
     
     tty->base.supports_cursor = false;
     
-    tty->io_port = io_port;
-    
-    tty->recv_buf = NULL;
-    tty->recv_buf_len = 0;
-    tty->recv_buf_maxlen = 0;
-    tty->recv_buf_head = 0;
-    tty->recv_buf_tail = 0;
-    cond_var_s_init(&tty->recv_buf_ready, &tty->base.lock);
-    
-    if (io_port != 0)
-    {
-        // Disable interrupts during configuration
-        outb((uint16)(io_port + 1), 0x00);
-        
-        // TODO: Make the divisor and mode configurable in some way
-        // Set the divisor to 12 (9600 baud)
-        outb((uint16)(io_port + 3), 0x80);
-        outb((uint16)(io_port + 0), 0x0C);
-        outb((uint16)(io_port + 1), 0x00);
-        
-        // Set the mode to 8N1
-        outb((uint16)(io_port + 3), 0x03);
-        
-        // Enable FIFO
-        outb((uint16)(io_port + 2), 0xC7);
-    }
-}
-
-static void tty_init_serial_interrupts(tty_serial* tty)
-{
-    if (tty->io_port != 0)
-    {
-        // Allocate space for the serial receive buffer
-        tty->recv_buf = kmem_pool_generic_alloc(SERIAL_RECV_BUF_SIZE, 0);
-        if (tty->recv_buf == NULL)
-            crash("Failed to allocate serial TTY receive buffer!");
-        
-        tty->recv_buf_maxlen = SERIAL_RECV_BUF_SIZE;
-        
-        // Enable interrupts for when received data is available
-        outb((uint16)(tty->io_port + 1), 0x01);
-    }
-}
-
-static void tty_serial_interrupt_1_3(regs32* r)
-{
-    tty_serial_handle_interrupt(&tty_serial_consoles[0]);
-    tty_serial_handle_interrupt(&tty_serial_consoles[2]);
-}
-
-static void tty_serial_interrupt_2_4(regs32* r)
-{
-    tty_serial_handle_interrupt(&tty_serial_consoles[1]);
-    tty_serial_handle_interrupt(&tty_serial_consoles[3]);
+    tty->port = &serial_ports[port_number];
 }
 
 void tty_init(void)
@@ -410,26 +325,16 @@ void tty_init(void)
     tty_virtual_consoles[0].base.flush(&tty_virtual_consoles[0].base);
     active_vc = &tty_virtual_consoles[0];
     
+    serial_init();
     for (i = 0; i < TTY_NUM_SERIAL; i++)
     {
-        tty_init_serial(&tty_serial_consoles[i], *(((uint16*) BDA_SERIAL_PORTS) + i));
+        tty_init_serial(&tty_serial_consoles[i], i);
     }
 }
 
 void tty_init_interrupts(void)
 {
-    uint32 i;
-    
-    idt_register_irq_handler(3, tty_serial_interrupt_2_4);
-    idt_register_irq_handler(4, tty_serial_interrupt_1_3);
-    
-    idt_set_irq_enabled(3, true);
-    idt_set_irq_enabled(4, true);
-    
-    for (i = 0; i < TTY_NUM_SERIAL; i++)
-    {
-        tty_init_serial_interrupts(&tty_serial_consoles[i]);
-    }
+    serial_init_interrupts();
 }
 
 void tty_write(tty_base* tty, const char* msg)
@@ -445,19 +350,19 @@ void tty_switch_vc(tty_vc* tty)
 {
     tty_vc* old = active_vc;
     
-    if (tty == active_vc) return;
+    if (tty == old) return;
     
-    spinlock_acquire(&tty->base.lock);
-    spinlock_acquire(&old->base.lock);
+    mutex_acquire(&tty->base.lock);
+    mutex_acquire(&old->base.lock);
     
     old->is_active = false;
     tty->is_active = true;
     active_vc = tty;
     
-    spinlock_release(&old->base.lock);
+    mutex_release(&old->base.lock);
     
     tty->base.flush(&tty->base);
-    spinlock_release(&tty->base.lock);
+    mutex_release(&tty->base.lock);
 }
 
 static int tprintf_write_char(void* tty, char c)

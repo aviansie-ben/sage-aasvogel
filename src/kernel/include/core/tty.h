@@ -2,7 +2,8 @@
 #define CORE_TTY_H
 
 #include <core/console.h>
-#include <lock/spinlock.h>
+#include <core/serial.h>
+#include <lock/mutex.h>
 #include <lock/condvar.h>
 #include <stdarg.h>
 
@@ -11,7 +12,7 @@
 
 typedef struct tty_base
 {
-    spinlock lock;
+    mutex lock;
     
     uint16 width, height;
     
@@ -47,15 +48,7 @@ typedef struct
 typedef struct
 {
     tty_base base;
-    
-    char* recv_buf;
-    int recv_buf_len;
-    int recv_buf_maxlen;
-    int recv_buf_head;
-    int recv_buf_tail;
-    cond_var_s recv_buf_ready;
-    
-    uint16 io_port;
+    serial_port* port;
 } tty_serial;
 
 extern tty_vc tty_virtual_consoles[TTY_NUM_VCS];
