@@ -83,9 +83,10 @@ static void remap_pic(uint8 offset_master, uint8 offset_slave)
 
 static void mask_all_pic_irqs(void)
 {
-    // Set the IMR on the master and slave PICs to have all interrupts masked
-    // (all bits set)
-    outb(MASTER_PIC_DATA, 0xFF);
+    // Set the IMR on the master and slave PICs to have all interrupts masked.
+    // IRQ 2 is explicitly not masked, since it is only used for communicating
+    // between the master and slave PICs.
+    outb(MASTER_PIC_DATA, 0xFB);
     outb(SLAVE_PIC_DATA, 0xFF);
 }
 
