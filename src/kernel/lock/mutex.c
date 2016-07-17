@@ -65,6 +65,26 @@ bool mutex_try_acquire(mutex* m)
     return mutex_acquire_fast(m);
 }
 
+static void mutex_remove_from_held(sched_thread* t, mutex* m)
+{
+    mutex* pm = NULL;
+    
+    for (mutex* hm = t->held_mutexes; hm != NULL; pm = hm, hm = hm->owner_next)
+    {
+        if (hm == m)
+        {
+            if (pm == NULL)
+                t->held_mutexes = hm->owner_next;
+            else
+                pm->owner_next = hm->owner_next;
+            
+            return;
+        }
+    }
+    
+    crash("Thread held_mutexes linked list corrupted");
+}
+
 void mutex_release(mutex* m)
 {
     sched_thread* t = sched_thread_current();
@@ -72,10 +92,8 @@ void mutex_release(mutex* m)
     
     if (m->owner != t)
         crash("Kernel mutex released by non-owner!");
-    else if (t->held_mutexes != m)
-        crash("Kernel mutexes released in wrong order!");
     
-    t->held_mutexes = m->owner_next;
+    mutex_remove_from_held(t, m);
     
     spinlock_acquire(&m->wait_queue.lock);
     if ((nt = sched_thread_dequeue(&m->wait_queue)) != NULL)
