@@ -13,7 +13,8 @@ VERSION_SUFFIX ?= -git-$(shell git describe --always)
 WARNINGS ?= -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align \
             -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations \
             -Wredundant-decls -Wnested-externs -Winline -Wno-long-long \
-            -Wuninitialized -Wconversion -Wstrict-prototypes -Wno-unused-parameter
+            -Wuninitialized -Wconversion -Wstrict-prototypes -Wno-unused-parameter \
+            -Wno-maybe-uninitialized
 CFLAGS += -c -g -ffreestanding -std=gnu11 -I$(INCLUDE_DIR) -DSAGE_AASVOGEL -DVERSION_SUFFIX=\"$(VERSION_SUFFIX)\" -DMMAP_DEBUG $(WARNINGS)
 CC := i686-elf-gcc
 

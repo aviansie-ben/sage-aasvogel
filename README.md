@@ -10,7 +10,7 @@ This is an experimental OS designed solely for educational purposes. I am not in
 
 ## Building Sage Aasvogel
 
-Before building Sage Aasvogel, you first need to have built a proper cross compiler for the `i686-elf` platform. The tested development environment uses GCC 4.9.2 and GNU Binutils 2.25. The `i686-elf-gcc` and `i686-elf-ld` commands must also be in your `PATH` environment variable.
+Before building Sage Aasvogel, you first need to have built a proper cross compiler for the `i686-elf` platform. The tested development environment uses GCC 6.1.0 and GNU Binutils 2.26. The `i686-elf-gcc` and `i686-elf-ld` commands must also be in your `PATH` environment variable.
 
 Once you have all the required programs installed, you can build the entire Sage Aasvogel project by running `make all`. After this, you should run `sudo make image` to actually package the floppy image in order to boot Sage Aasvogel. The resulting image will be stored in `sa.img` in the project directory.
 
