@@ -166,14 +166,14 @@ int gprintf(const char* format, size_t n, void* a, gprintf_write_char write, va_
         if (ch == '%')
         {
             err = gprintf_arg(&format, buf, &nc, n, a, write, &vararg);
-            if (err != E_SUCCESS) return err;
+            if (err != E_SUCCESS) return -err;
         }
         else
         {
             if (nc++ < n)
             {
                 err = write(a, ch);
-                if (err != E_SUCCESS) return err;
+                if (err != E_SUCCESS) return -err;
             }
         }
     }
