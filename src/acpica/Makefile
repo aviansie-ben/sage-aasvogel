@@ -4,7 +4,7 @@ SRC_DIR ?= .
 OBJ_DIR ?= ../../obj/acpica
 OUTPUT_ARCHIVE ?= $(OBJ_DIR)/acpica.a
 
-WARNINGS ?= -Wall
+WARNINGS ?=
 CFLAGS += -c -ffreestanding -fvisibility=hidden -std=gnu11 -I$(INCLUDE_DIR) -I$(KERNEL_INCLUDE_DIR) -DSAGE_AASVOGEL $(WARNINGS)
 CC := i686-elf-gcc
 
