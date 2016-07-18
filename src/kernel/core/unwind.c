@@ -26,3 +26,15 @@ void unchecked_unwind_here(uint32 skip_frames, uint32 max_frames, frame_handler 
     
     unchecked_unwind(*(((unsigned int*) ebp) + 1), *((void**) ebp), max_frames, handler);
 }
+
+uint32 get_caller_address(void)
+{
+    void* ebp;
+    
+    asm volatile ("mov %%ebp, %0" : "=r" (ebp));
+    
+    ebp = *((void**)ebp);
+    ebp = *((void**)ebp);
+    
+    return *(((uint32*) ebp) + 1);
+}
