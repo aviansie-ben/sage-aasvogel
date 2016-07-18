@@ -7,6 +7,8 @@ SECTIONS
        important in lower memory. */
     . = 0x100000;
     
+    _ld_kernel_begin = .;
+    
     /* Pre-initialization code/data goes in this section. Other sections have
        addresses that assume that the kernel has already been mapped to
        0xC0000000, which is done by pre-initialization. */
@@ -69,6 +71,7 @@ SECTIONS
        Anything after this point in memory is either a module loaded by GRUB or
        dynamically allocated memory, which is not mapped at boot time by the
        pre-initialization code. */
+    . = ALIGN(0x1000);
     _ld_kernel_end = . - 0xC0000000;
     
     /* Early in the boot process, some memory is required to perform basic
