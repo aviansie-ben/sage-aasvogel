@@ -79,8 +79,8 @@ void kernel_main(multiboot_info* multiboot)
     // parameters, so initialize that now.
     kmem_early_init(multiboot);
     
-    // Parse the command-line parameters passed by the bootloader
-    parse_boot_cmdline(multiboot, &gparam);
+    // Parse multiboot information into a useable format.
+    boot_param_init(&gparam, multiboot);
     
     // Initialize the kernel-mode logging functions
     klog_init(&gparam);

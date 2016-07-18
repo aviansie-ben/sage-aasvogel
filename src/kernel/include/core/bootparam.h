@@ -5,15 +5,34 @@
 #include <multiboot.h>
 
 typedef struct {
-    multiboot_info* multiboot;
+    const char* name;
     
+    uint64 start_address;
+    uint64 end_address;
+} boot_param_module_info;
+
+typedef struct {
+    uint32 type;
+    
+    uint64 start_address;
+    uint64 end_address;
+} boot_param_mmap_region;
+
+typedef struct {
     size_t num_cmdline_parts;
     const char** cmdline_parts;
+    
+    size_t num_modules;
+    const boot_param_module_info* modules;
+    
+    size_t num_mmap_regions;
+    const boot_param_mmap_region* mmap_regions;
 } boot_param;
 
-extern void parse_boot_cmdline(multiboot_info* multiboot, boot_param* param) __hidden;
+extern void boot_param_init(boot_param* param, const multiboot_info* multiboot) __hidden;
+
 extern bool cmdline_get_bool(const boot_param* param, const char* param_name) __pure;
 extern const char* cmdline_get_str(const boot_param* param, const char* param_name, const char* def_value) __pure;
-extern int32 cmdline_get_int(const boot_param* param, const char* param_name, int32 min_value, int32 max_value, int32 def_value);
+extern int32 cmdline_get_int(const boot_param* param, const char* param_name, int32 min_value, int32 max_value, int32 def_value) __pure;
 
 #endif

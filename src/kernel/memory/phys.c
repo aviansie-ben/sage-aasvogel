@@ -161,8 +161,7 @@ static void _push_unallocated(const boot_param* param)
     bool high_warn = false;
     addr_p alloc_end = (addr_p)kmem_early_next_alloc;
     
-    multiboot_mmap_entry* mmap = (multiboot_mmap_entry*) (param->multiboot->mmap_addr + 0xC0000000);
-    multiboot_mmap_entry* mmap_end = (multiboot_mmap_entry*) (param->multiboot->mmap_addr + 0xC0000000 + param->multiboot->mmap_length);
+    const boot_param_mmap_region* region;
     
     addr_p region_begin;
     addr_p region_end;
@@ -174,10 +173,12 @@ static void _push_unallocated(const boot_param* param)
         alloc_end += 1;
     }
     
-    while (mmap != mmap_end)
+    for (size_t i = 0; i < param->num_mmap_regions; i++)
     {
-        region_begin = mmap->base_addr;
-        region_end = mmap->base_addr + mmap->length;
+        region = &param->mmap_regions[i];
+        
+        region_begin = region->start_address;
+        region_end = region->end_address;
         
         region_end &= ~0xfffull;
         
@@ -187,24 +188,26 @@ static void _push_unallocated(const boot_param* param)
             region_begin += 1;
         }
         
+        if (region_begin == region_end) continue;
+        
         kmem_total_frames += (uint32)((region_end - region_begin) / FRAME_SIZE);
         
-        if (mmap->type == 1)
+        if (region->type == 1)
         {
             if (region_end > alloc_end)
             {
                 if (region_begin < alloc_end)
                 {
 #ifdef MMAP_DEBUG
-                    klog(KLOG_LEVEL_DEBUG, "MMAP - 0x%lx > 0x%lx - KERNEL RESERVED\n", region_begin, alloc_end);
-                    klog(KLOG_LEVEL_DEBUG, "MMAP - 0x%lx > 0x%lx - FREE\n", alloc_end, region_end);
+                    klog(KLOG_LEVEL_DEBUG, "mmap: 0x%016lx -> 0x%016lx - KERNEL RESERVED\n", region_begin, alloc_end);
+                    klog(KLOG_LEVEL_DEBUG, "mmap: 0x%016lx -> 0x%016lx - FREE\n", alloc_end, region_end);
 #endif
                     region_begin = alloc_end;
                 }
 #ifdef MMAP_DEBUG
                 else
                 {
-                    klog(KLOG_LEVEL_DEBUG, "MMAP - 0x%lx > 0x%lx - FREE\n", region_begin, region_end);
+                    klog(KLOG_LEVEL_DEBUG, "mmap: 0x%016lx -> 0x%016lx - FREE\n", region_begin, region_end);
                 }
 #endif
                 
@@ -228,18 +231,16 @@ static void _push_unallocated(const boot_param* param)
 #ifdef MMAP_DEBUG
             else
             {
-                klog(KLOG_LEVEL_DEBUG, "MMAP - 0x%lx > 0x%lx - KERNEL RESERVED\n", region_begin, region_end);
+                klog(KLOG_LEVEL_DEBUG, "mmap: 0x%016lx -> 0x%016lx - KERNEL RESERVED\n", region_begin, region_end);
             }
 #endif
         }
 #ifdef MMAP_DEBUG
         else
         {
-            klog(KLOG_LEVEL_DEBUG, "MMAP - 0x%lx > 0x%lx - SYSTEM RESERVED (TYPE %d)\n", region_begin, region_end, mmap->type);
+            klog(KLOG_LEVEL_DEBUG, "mmap: 0x%016lx -> 0x%016lx - SYSTEM RESERVED (%d)\n", region_begin, region_end, region->type);
         }
 #endif
-        
-        mmap = (multiboot_mmap_entry*) ((uint32) mmap + mmap->size + sizeof(mmap->size));
     }
 }
 
