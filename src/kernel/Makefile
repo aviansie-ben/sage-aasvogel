@@ -59,7 +59,7 @@ acpica.a:
 
 boot-files: $(BOOT_OUT_FILES)
 
-kernel.bin: $(OBJ_FILES) acpica.a
+kernel.bin: $(OBJ_FILES) acpica.a $(SRC_DIR)/linker.ld
 	@$(LD) $(LDFLAGS) -o $(KERNEL_BIN) $(OBJ_FILES) -lgcc $(ACPICA_OUTPUT)
 
 doxygen-generated.cfg: doxygen.cfg Makefile

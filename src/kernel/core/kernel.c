@@ -77,7 +77,7 @@ void kernel_main(multiboot_info* multiboot)
     
     // We need the early memory manager to be able to parse the command-line
     // parameters, so initialize that now.
-    kmem_early_init(multiboot);
+    kmem_early_init();
     
     // Parse multiboot information into a useable format.
     boot_param_init(&gparam, multiboot);

@@ -159,7 +159,7 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
 static void _push_unallocated(const boot_param* param)
 {
     bool high_warn = false;
-    addr_p alloc_end = (addr_p)kmem_early_next_alloc;
+    addr_p alloc_end = (addr_p)(kmem_early_next_alloc - 0xC0000000);
     
     const boot_param_mmap_region* region;
     

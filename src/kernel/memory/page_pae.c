@@ -128,7 +128,7 @@ static page_table_pae* _alloc_page_table_global(page_dir_ptr_tab* pdpt, addr_v a
     else
     {
         uint32 pde_map_begin = ((kmem_early_next_alloc - global_tables) & PD_MASK) >> PD_SHIFT;
-        assert(kmem_early_next_alloc <= global_tables + (pde * FRAME_SIZE) - 0xC0000000);
+        assert(kmem_early_next_alloc <= global_tables + (pde * FRAME_SIZE));
         
         for (uint32 pde_map = pde_map_begin; pde_map <= pde; pde_map++)
         {
@@ -141,7 +141,7 @@ static page_table_pae* _alloc_page_table_global(page_dir_ptr_tab* pdpt, addr_v a
                 pdpt->page_table_virt[pdet]->page_phys[i] = 0;
         }
         
-        kmem_early_next_alloc = global_tables + ((pde + 1) * FRAME_SIZE) - 0xC0000000;
+        kmem_early_next_alloc = global_tables + ((pde + 1) * FRAME_SIZE);
         
         for (uint32 pde_map = pde_map_begin; pde_map <= pde; pde_map++)
         {
@@ -182,7 +182,7 @@ void kmem_page_pae_init(const boot_param* param)
     
     // The early memory manager is finalized now, so we can put our reserved
     // virtual addresses right after the end of the early allocations.
-    global_tables = kmem_early_next_alloc + 0xC0000000;
+    global_tables = kmem_early_next_alloc;
     
     if ((global_tables & (FRAME_SIZE - 1)) != 0)
     {

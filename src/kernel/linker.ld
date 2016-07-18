@@ -70,4 +70,15 @@ SECTIONS
        dynamically allocated memory, which is not mapped at boot time by the
        pre-initialization code. */
     _ld_kernel_end = . - 0xC0000000;
+    
+    /* Early in the boot process, some memory is required to perform basic
+       dynamic allocation of important data structures before proper memory
+       management is available. In order to allow this, we reserve 256KiB of
+       memory for this purpose immediately after the kernel binary. */
+    .kmalloc_early ALIGN(0x1000) : AT(ADDR(.kmalloc_early) - 0xC0000000)
+    {
+        _ld_kmalloc_early_begin = .;
+        . += 0x40000;
+        _ld_kmalloc_early_end = .;
+    }
 }

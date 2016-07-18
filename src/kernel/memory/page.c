@@ -57,7 +57,7 @@ static void _init_map_kmalloc_early(uint64 flags)
     
     for (addr = kmem_early_min_alloc & (addr_v)~FRAME_MASK; addr < kmem_early_next_alloc; addr += FRAME_SIZE)
     {
-        if (kmem_page_pae_enabled) result = kmem_page_pae_set(&kernel_page_context, addr + KERNEL_VIRTUAL_ADDRESS_BEGIN, (addr_p) addr, flags);
+        if (kmem_page_pae_enabled) result = kmem_page_pae_set(&kernel_page_context, addr, (addr_p)(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN), flags);
         else crash("Legacy paging not implemented!");
         
         if (!result)
