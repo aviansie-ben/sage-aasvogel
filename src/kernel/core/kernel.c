@@ -23,7 +23,7 @@
 
 #include <fs/vfs.h>
 
-#include <acpica/acpi.h>
+#include <core/acpi.h>
 
 static boot_param gparam;
 
@@ -54,11 +54,7 @@ static void kernel_main2(const boot_param* param)
     
     vfs_init(param);
     
-    ACPI_STATUS status;
-    status = AcpiInitializeSubsystem();
-    status = AcpiInitializeTables(NULL, 16, FALSE);
-    status = AcpiLoadTables();
-    status = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+    acpi_init();
     
     while (true)
     {
