@@ -17,6 +17,7 @@ typedef enum
     FA_WAIT = 0x1,
     FA_EMERG = 0x2,
     FA_32BIT = 0x4,
+    FA_LOW_MEM = 0x8
 } frame_alloc_flags;
 
 extern uint32 kmem_total_frames;

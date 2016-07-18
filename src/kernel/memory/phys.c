@@ -35,6 +35,9 @@ static bool high_stack_enabled;
 static uint32 high_stack_top;
 static volatile free_frame_stack high_stack __attribute__((aligned(FRAME_SIZE)));
 
+static uint32 low_stack_top;
+static volatile free_frame_stack low_stack __attribute__((aligned(FRAME_SIZE)));
+
 static uint32 free_stack_top;
 static volatile free_frame_stack free_stack __attribute__((aligned(FRAME_SIZE)));
 
@@ -68,7 +71,11 @@ static void _push_free_frame(addr_p frame)
 {
     kmem_free_frames++;
     
-    if (frame >= (1ull << 32))
+    if (frame < (1ull << 20))
+    {
+        _push_free_frame_stack(&low_stack_top, &low_stack, frame);
+    }
+    else if (frame >= (1ull << 32))
     {
         assert(high_stack_enabled);
         _push_free_frame_stack(&high_stack_top, &high_stack, frame);
@@ -144,15 +151,25 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
     
     while (true)
     {
-        if ((flags & FA_32BIT) == 0 && high_stack_enabled)
-            frame = _pop_free_frame(&high_stack_top, &high_stack);
-        
-        if (frame == FRAME_NULL)
-            frame = _pop_free_frame(&free_stack_top, &free_stack);
-        
-        if (frame == FRAME_NULL && (flags & FA_EMERG) != 0)
+        if ((flags & FA_LOW_MEM) != 0)
         {
-            frame = _pop_emerg_frame();
+            frame = _pop_free_frame(&low_stack_top, &low_stack);
+        }
+        else
+        {
+            if ((flags & FA_32BIT) == 0 && high_stack_enabled)
+                frame = _pop_free_frame(&high_stack_top, &high_stack);
+            
+            if (frame == FRAME_NULL)
+                frame = _pop_free_frame(&free_stack_top, &free_stack);
+            
+            if (frame == FRAME_NULL && (flags & FA_EMERG) != 0)
+            {
+                frame = _pop_emerg_frame();
+                
+                if (frame == FRAME_NULL)
+                    frame = _pop_free_frame(&low_stack_top, &low_stack);
+            }
         }
         
         if (frame == FRAME_NULL && (flags & FA_WAIT) != 0)
