@@ -349,13 +349,15 @@ static int printf_to_buf(void* i, char c)
             printf_buf[printf_buf_pos] = '\0';
             printf_buf_pos = 0;
             
-            char* msg;
+            char* msg = NULL;
             uint32 lvl;
             
             if (!strncmp(printf_buf, ACPICA_KLOG_DEBUG, strlen(ACPICA_KLOG_DEBUG)))
             {
+#ifdef ACPICA_DEBUG
                 msg = &printf_buf[strlen(ACPICA_KLOG_DEBUG)];
                 lvl = KLOG_LEVEL_DEBUG;
+#endif
             }
             else if (!strncmp(printf_buf, ACPICA_KLOG_WARN, strlen(ACPICA_KLOG_WARN)))
             {
@@ -378,7 +380,8 @@ static int printf_to_buf(void* i, char c)
                 lvl = KLOG_LEVEL_NOTICE;
             }
             
-            klog(lvl, "acpica: %s\n", msg);
+            if (msg != NULL)
+                klog(lvl, "acpica: %s\n", msg);
         }
     }
     else if (printf_buf_pos != sizeof(printf_buf) - 1)
