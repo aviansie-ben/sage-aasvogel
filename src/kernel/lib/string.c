@@ -2,6 +2,10 @@
 #include <typedef.h>
 #include <assert.h>
 
+#include <setjmp.h>
+#include <memory/page.h>
+#include <lock/spinlock.h>
+
 static const char* itoa_values = "0123456789ABCDEF";
 
 void strcpy(char* dest, const char* src)
@@ -324,4 +328,29 @@ int memcmp(const void* p1, const void* p2, size_t size)
     }
     
     return size == 0 ? 0 : (*p1_b - *p2_b);
+}
+
+void* memcpy_safe(void* dest, const void* src, size_t size)
+{
+    jmp_buf env;
+    void* result;
+    
+    // We cannot allow interrupts while a temporary page fault handler is set
+    uint32 eflags = eflags_save();
+    asm volatile ("cli");
+    
+    if (!setjmp(env))
+    {
+        kmem_page_set_temp_fault_handler(env, NULL, NULL);
+        result = memcpy(dest, src, size);
+        kmem_page_clear_temp_fault_handler();
+    }
+    else
+    {
+        result = NULL;
+    }
+    
+    eflags_load(eflags);
+    
+    return result;
 }

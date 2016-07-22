@@ -21,4 +21,6 @@ extern void* memcpy(void* dest, const void* src, size_t size);
 extern void* memset(void* ptr, int val, size_t size);
 extern int memcmp(const void* p1, const void* p2, size_t size);
 
+extern void* memcpy_safe(void* dest, const void* src, size_t size);
+
 #endif
