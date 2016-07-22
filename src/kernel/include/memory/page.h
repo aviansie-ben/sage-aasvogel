@@ -4,6 +4,7 @@
 #include <typedef.h>
 #include <lock/spinlock.h>
 #include <memory/phys.h>
+#include <setjmp.h>
 
 #define KERNEL_VIRTUAL_ADDRESS_BEGIN  0xC0000000u
 #define PAGE_PHYSICAL_ADDRESS_MASK_64 0x7FFFFFFFFFFFF000u
@@ -114,6 +115,9 @@ void kmem_page_unmap(page_context* c, addr_v virtual_address, bool flush);
 bool kmem_page_global_get(addr_v virtual_address, addr_p* physical_address, uint64* flags) __pure __warn_unused_result;
 bool kmem_page_global_map(addr_v virtual_address, uint64 flags, bool flush, addr_p frame) __warn_unused_result;
 void kmem_page_global_unmap(addr_v virtual_address, bool flush);
+
+void kmem_page_set_temp_fault_handler(jmp_buf env, volatile addr_v* fault_address, volatile uint32* fault_reason);
+void kmem_page_clear_temp_fault_handler(void);
 
 void kmem_page_flush_one(addr_v virtual_address);
 void kmem_page_flush_region(addr_v virtual_address, uint32 num_pages);

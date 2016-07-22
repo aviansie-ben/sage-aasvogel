@@ -86,14 +86,12 @@ void do_crash_interrupt(const char* msg, const char* file, const char* func, uin
     hang();
 }
 
-void do_crash_pagefault(regs32_t* r)
+void do_crash_pagefault(regs32_t* r, uint32 fault_address)
 {
-    uint32 fault_address;
     char address_name[50];
     bool address_named;
     
     asm volatile ("cli");
-    asm volatile ("movl %%cr2, %0" : "=r" (fault_address));
     
     serial_stop_interrupts();
     klog_flush();

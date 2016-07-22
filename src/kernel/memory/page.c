@@ -22,6 +22,14 @@ extern const void _ld_data_end;
 extern const void _ld_bss_begin;
 extern const void _ld_bss_end;
 
+typedef struct
+{
+    jmp_buf* env;
+    
+    volatile addr_v* fault_address;
+    volatile uint32* fault_reason;
+} page_fault_temp_handler;
+
 page_context kernel_page_context;
 page_context* active_page_context;
 
@@ -29,6 +37,8 @@ addr_v kmem_page_resv_end;
 
 bool kmem_page_pae_enabled = false;
 bool kmem_page_pge_enabled = false;
+
+static page_fault_temp_handler _page_fault_temp_handler;
 
 static void _init_map_range(addr_v start, addr_v end, uint64 flags)
 {
@@ -65,6 +75,31 @@ static void _init_map_kmalloc_early(uint64 flags)
     }
 }
 
+static void _page_fault_handler(regs32* r)
+{
+    addr_v fault_address;
+    asm volatile ("movl %%cr2, %0" : "=r" (fault_address));
+    
+    if (_page_fault_temp_handler.env != NULL)
+    {
+        longjmp_interrupt(*_page_fault_temp_handler.env, 1, r);
+        
+        if (_page_fault_temp_handler.fault_address != NULL)
+            *_page_fault_temp_handler.fault_address = fault_address;
+        
+        if (_page_fault_temp_handler.fault_reason != NULL)
+            *_page_fault_temp_handler.fault_reason = r->err_code;
+        
+        // Deregister the handler immediately, as we don't want it to execute again if there's an
+        // issue in the handler.
+        _page_fault_temp_handler.env = NULL;
+        
+        return;
+    }
+    
+    do_crash_pagefault(r, fault_address);
+}
+
 void kmem_page_init(const boot_param* param)
 {
     uint32 cr4;
@@ -84,8 +119,8 @@ void kmem_page_init(const boot_param* param)
         asm volatile ("mov %0, %%cr4" : : "r" (cr4));
     }
     
-    // Register the page fault interrupt to crash the system
-    idt_register_isr_handler(0xe, do_crash_pagefault);
+    // Register the page fault interrupt
+    idt_register_isr_handler(0xe, _page_fault_handler);
     
     // Perform stage 1 initialization
     if (kmem_page_pae_enabled) kmem_page_pae_init(param);
@@ -335,6 +370,23 @@ void kmem_page_global_unmap(addr_v virtual_address, bool flush)
     spinlock_acquire(&kernel_page_context.lock);
     _kmem_page_global_unmap(virtual_address, flush);
     spinlock_release(&kernel_page_context.lock);
+}
+
+void kmem_page_set_temp_fault_handler(jmp_buf env, volatile addr_v* fault_address, volatile uint32* fault_reason)
+{
+    assert(_page_fault_temp_handler.env == NULL);
+    
+    // Don't question this... jmp_buf is an array type, so it works in the end
+    _page_fault_temp_handler.env = (jmp_buf*)env;
+    
+    _page_fault_temp_handler.fault_address = fault_address;
+    _page_fault_temp_handler.fault_reason = fault_reason;
+}
+
+void kmem_page_clear_temp_fault_handler(void)
+{
+    assert(_page_fault_temp_handler.env != NULL);
+    _page_fault_temp_handler.env = NULL;
 }
 
 void kmem_page_flush_one(addr_v virtual_address)
