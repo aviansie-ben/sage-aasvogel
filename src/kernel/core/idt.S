@@ -86,44 +86,54 @@ interrupt_common:
     # Now we need to check whether the code we're returning to is ring 0 code.
     # If it is, then the ESP and SS values will not get popped by IRET, so we
     # need to pop them manually.
-    
     mov edx, [esp]
     push edx
     call _idt_is_ring0
     add esp, 4
+    
+    # Get rid of the EBP marker values on the stack, as we don't need them after
+    # this.
+    mov edx, [esp]
+    add esp, 0xC
+    
     cmp eax, 0
     je .Lreturn
     
     # Pop the SS value that we should switch to.
-    mov edx, [esp]
     mov eax, [edx + 0x48]
     mov ss, eax
     
-    # We will move to the new stack and shift the structure simultaneously.
+    # First, we find the location of the original regs32 structure, as well as
+    # the new location it should be moved to in order to return with the correct
+    # ESP value.
     mov esi, esp
-    mov ebx, esi
-    add esi, 0x4C
-    add ebx, 0x8
-    
     mov edi, [edx + 0x44]
-    sub edi, 0x4
+    sub edi, 0x44
     
-.Lfree_ring0:
-    mov eax, [esi]
-    mov [edi], eax
-    sub esi, 0x4
-    sub edi, 0x4
-    
-    cmp esi, ebx
-    jg .Lfree_ring0
+    # Next, we need to make sure that the stack pointer is lower than all of the
+    # memory we will be manipulating. If it's not, parts of the stack used for
+    # the call to memmove might be overwritten during the copy.
+    cmp esi, edi
+    jb .Lsource_low
     
     mov esp, edi
-    sub esp, 0x8
+    jmp .Lfinish_esp_ring0
+    
+.Lsource_low:
+    mov esp, esi
+    
+.Lfinish_esp_ring0:
+    # Now that everything's set up, we can safely call memmove to move the
+    # regs32 struct to the desired location.
+    push 0x44
+    push esi
+    push edi
+    call memmove
+    
+    # Finally, we switch to using the new stack.
+    mov esp, edi
 
 .Lreturn:
-    # Skip some unneeded values to get to the actual register data
-    add esp, 0xC
-    
     # Pop registers back off of the stack
     pop gs
     pop fs
