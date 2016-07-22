@@ -3,6 +3,8 @@
 
 #include <typedef.h>
 
+extern const char* errcode_to_str(int errcode);
+
 extern void strcpy(char* dest, const char* src);
 extern void strncpy(char* dest, const char* src, size_t n);
 extern void strcat(char* dest, const char* src);

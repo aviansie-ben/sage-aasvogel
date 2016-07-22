@@ -7,6 +7,29 @@
 #include <lock/spinlock.h>
 
 static const char* itoa_values = "0123456789ABCDEF";
+static const char* errcode_names[] = {
+    "E_SUCCESS",
+    "E_NOT_FOUND",
+    "E_NOT_SUPPORTED",
+    "E_IO_ERROR",
+    "E_INVALID",
+    "E_BUSY",
+    "E_NOT_DIR",
+    "E_IS_DIR",
+    "E_NAME_TOO_LONG",
+    "E_LOOP",
+    "E_NO_SPACE",
+    "E_NO_MEMORY",
+    "E_ALREADY_EXISTS"
+};
+
+const char* errcode_to_str(int errcode)
+{
+    if (errcode >= 0 && (unsigned int)errcode < (sizeof(errcode_names) / sizeof(*errcode_names)))
+        return errcode_names[errcode];
+    else
+        return "E_UNKNOWN";
+}
 
 void strcpy(char* dest, const char* src)
 {
