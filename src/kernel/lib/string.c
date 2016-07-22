@@ -238,6 +238,7 @@ static unsigned long long __strtounum(const char** str, unsigned long long max, 
         (*str)++;
     }
     
+    if (error != NULL) *error = false;
     return acc;
 }
 
