@@ -91,6 +91,7 @@ extern bool kmem_page_pae_enabled;
 extern bool kmem_page_pge_enabled;
 extern addr_v kmem_page_resv_end __hidden;
 
+void kmem_page_preinit(const boot_param* param) __hidden;
 void kmem_page_init(const boot_param* param) __hidden;
 
 bool kmem_page_context_create(page_context* c) __warn_unused_result;

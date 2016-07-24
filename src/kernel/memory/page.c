@@ -39,6 +39,7 @@ bool kmem_page_pae_enabled = false;
 bool kmem_page_pge_enabled = false;
 
 static page_fault_temp_handler _page_fault_temp_handler;
+static bool _preinit_done;
 
 static void _init_map_range(addr_v start, addr_v end, uint64 flags)
 {
@@ -100,9 +101,21 @@ static void _page_fault_handler(regs32* r)
     do_crash_pagefault(r, fault_address);
 }
 
+void kmem_page_preinit(const boot_param* param)
+{
+    if (_preinit_done) return;
+    
+    // Register the page fault interrupt
+    idt_register_isr_handler(0xe, _page_fault_handler);
+    
+    _preinit_done = true;
+}
+
 void kmem_page_init(const boot_param* param)
 {
     uint32 cr4;
+    
+    kmem_page_preinit(param);
     
     // Determine whether PAE has been enabled. If PAE is supported and was
     // requested, then the pre-initialization boot code will have enabled it
@@ -118,9 +131,6 @@ void kmem_page_init(const boot_param* param)
         cr4 |= 0x80;
         asm volatile ("mov %0, %%cr4" : : "r" (cr4));
     }
-    
-    // Register the page fault interrupt
-    idt_register_isr_handler(0xe, _page_fault_handler);
     
     // Perform stage 1 initialization
     if (kmem_page_pae_enabled) kmem_page_pae_init(param);
