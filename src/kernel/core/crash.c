@@ -8,6 +8,7 @@
 #include <core/ksym.h>
 #include <core/klog.h>
 #include <core/serial.h>
+#include <core/gdb_stub.h>
 
 static bool lookup_name(unsigned int address, char* out, uint32 flags)
 {
@@ -63,7 +64,15 @@ void do_crash(const char* msg, const char* file, const char* func, uint32 line)
     tprintf(&tty_serial_consoles[0].base, "Kernel has crashed: %s\nStack Trace:\n", msg);
     unchecked_unwind_here(1, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
-    hang();
+    if (gdb_stub_is_active())
+    {
+        while (true)
+            gdb_stub_break(STOPPED_ABORT);
+    }
+    else
+    {
+        hang();
+    }
 }
 
 void do_crash_interrupt(const char* msg, const char* file, const char* func, uint32 line, regs32_t* r)
@@ -83,7 +92,15 @@ void do_crash_interrupt(const char* msg, const char* file, const char* func, uin
     tprintf(&tty_serial_consoles[0].base, "Kernel has crashed!\nStack Trace:\n");
     unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
-    hang();
+    if (gdb_stub_is_active())
+    {
+        while (true)
+            gdb_stub_break_interrupt(r, STOPPED_ABORT);
+    }
+    else
+    {
+        hang();
+    }
 }
 
 void do_crash_pagefault(regs32_t* r, uint32 fault_address)
@@ -148,7 +165,15 @@ void do_crash_pagefault(regs32_t* r, uint32 fault_address)
     tprintf(&tty_serial_consoles[0].base, "\nStack Trace:\n");
     unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
-    hang();
+    if (gdb_stub_is_active())
+    {
+        while (true)
+            gdb_stub_break_interrupt(r, STOPPED_PAGE_FAULT);
+    }
+    else
+    {
+        hang();
+    }
 }
 
 void do_crash_unhandled_isr(regs32_t* r)
@@ -168,5 +193,13 @@ void do_crash_unhandled_isr(regs32_t* r)
     tprintf(&tty_serial_consoles[0].base, "Kernel has crashed: unhandled isr 0x%x\nStack Trace:\n", r->int_no);
     unchecked_unwind(r->eip, (void*) r->ebp, CRASH_STACKTRACE_MAX_DEPTH, crash_print_stackframe);
     
-    hang();
+    if (gdb_stub_is_active())
+    {
+        while (true)
+            gdb_stub_break_interrupt(r, STOPPED_ABORT);
+    }
+    else
+    {
+        hang();
+    }
 }

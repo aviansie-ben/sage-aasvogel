@@ -10,7 +10,8 @@ IMG_OUT ?= sa.img
 IMG_MNT_DIR ?= /mnt/sa-floppy
 
 QEMU ?= qemu-system-i386
-QEMUFLAGS ?= -m 64 -s -cpu Westmere,-de,-syscall,-lm,-vme,enforce -smp 2 -serial stdio
+QEMUFLAGS ?= -m 64 -s -cpu Westmere,-de,-syscall,-lm,-vme,enforce -smp 2 -serial file:serial.out \
+             -chardev pty,id=gdbs -serial chardev:gdbs
 QEMUFLAGS += -drive file=$(IMG_OUT),if=floppy,format=raw
 
 .PHONY: all clean doc $(MODULES) $(MODULES_CLEAN) image emulate

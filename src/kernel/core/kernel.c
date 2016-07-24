@@ -8,6 +8,7 @@
 #include <core/gdt.h>
 #include <core/idt.h>
 #include <core/ksym.h>
+#include <core/gdb_stub.h>
 
 #include <core/tty.h>
 #include <core/klog.h>
@@ -34,10 +35,6 @@ static void kernel_main2(const boot_param* param)
     // Run CPUID checks
     cpuid_init();
     klog(KLOG_LEVEL_INFO, "Detected CPU Vendor: %s (%s)\n", cpuid_detected_vendor->vendor_name, cpuid_detected_vendor->vendor_id.str);
-    
-    // Initialize the GDT and IDT
-    gdt_init();
-    idt_init();
     
     // Initialize the memory manager
     kmem_page_init(param);
@@ -80,6 +77,15 @@ void kernel_main(multiboot_info* multiboot)
     
     // Initialize the kernel-mode logging functions
     klog_init(&gparam);
+    
+    // Initialize the GDT and IDT
+    gdt_init();
+    idt_init();
+    
+    // We immediately initialize the GDB stub. Unless the user requests
+    // that it block immediately, it won't actually be usable until
+    // serial port interrupts have been initialized.
+    gdb_stub_init(&gparam);
     
     // Now, load the kernel symbols from the information passed by the
     // bootloader

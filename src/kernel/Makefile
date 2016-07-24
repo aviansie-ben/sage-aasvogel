@@ -15,7 +15,7 @@ WARNINGS ?= -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align \
             -Wredundant-decls -Wnested-externs -Winline -Wno-long-long \
             -Wuninitialized -Wconversion -Wstrict-prototypes -Wno-unused-parameter \
             -Wno-maybe-uninitialized
-CFLAGS += -c -g -ffreestanding -std=gnu11 -I$(INCLUDE_DIR) -DSAGE_AASVOGEL -DVERSION_SUFFIX=\"$(VERSION_SUFFIX)\" -DMMAP_DEBUG $(WARNINGS)
+CFLAGS += -c -g -ffreestanding -std=gnu11 -I$(INCLUDE_DIR) -DSAGE_AASVOGEL -DVERSION_SUFFIX=\"$(VERSION_SUFFIX)\" -DMMAP_DEBUG -DGDB_STUB_ENABLED $(WARNINGS)
 CC := i686-elf-gcc
 
 LDFLAGS += -T $(SRC_DIR)/linker.ld -L$(dir $(shell i686-elf-gcc -print-file-name=libgcc.a))

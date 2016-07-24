@@ -13,3 +13,7 @@ sa.img
 # Geany files
 project.geany
 geany_run_script.sh
+
+# Various debugging files
+serial.out
+.bochsrc
