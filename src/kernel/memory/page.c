@@ -447,18 +447,22 @@ void kmem_page_flush_all(void)
     }
 }
 
-void kmem_enable_write_protect(void)
+bool kmem_enable_write_protect(void)
 {
     uint32 cr0;
     
     asm volatile ("mov %%cr0, %0" : "=r" (cr0));
     asm volatile ("mov %0, %%cr0" : : "r" (cr0 | 0x10000));
+    
+    return (cr0 & 0x10000u) != 0;
 }
 
-void kmem_disable_write_protect(void)
+bool kmem_disable_write_protect(void)
 {
     uint32 cr0;
     
     asm volatile ("mov %%cr0, %0" : "=r" (cr0));
     asm volatile ("mov %0, %%cr0" : : "r" (cr0 & ~0x10000u));
+    
+    return (cr0 & 0x10000u) != 0;
 }

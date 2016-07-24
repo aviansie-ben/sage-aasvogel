@@ -124,7 +124,7 @@ void kmem_page_flush_one(addr_v virtual_address);
 void kmem_page_flush_region(addr_v virtual_address, uint32 num_pages);
 void kmem_page_flush_all(void);
 
-void kmem_enable_write_protect(void);
-void kmem_disable_write_protect(void);
+bool kmem_enable_write_protect(void);
+bool kmem_disable_write_protect(void);
 
 #endif
