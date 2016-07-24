@@ -1,6 +1,7 @@
 #include <printf.h>
 #include <string.h>
 #include <core/crash.h>
+#include <ctype.h>
 
 static int gprintf_str(const char* buf, size_t min_len, size_t max_len, bool zero_pad, bool left_justify, size_t* nc, size_t n, void* a, gprintf_write_char write)
 {
@@ -49,6 +50,15 @@ static int gprintf_str(const char* buf, size_t min_len, size_t max_len, bool zer
     }
     
     return 0;
+}
+
+static void make_lower(char* buf)
+{
+    while (*buf != '\0')
+    {
+        *buf = (char)tolower(*buf);
+        buf++;
+    }
 }
 
 static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, void* a, gprintf_write_char write, va_list* vararg)
@@ -120,6 +130,10 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
         
         i = va_arg(*vararg, int);
         itoa(i, buf, 16);
+        
+        if ((*format)[-1] == 'x')
+            make_lower(buf);
+        
         return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
     else if ((*format)[0] == 'l' && (*format)[1] == 'd')
@@ -136,6 +150,10 @@ static int gprintf_arg(const char** format, char* buf, size_t* nc, size_t n, voi
         
         l = va_arg(*vararg, long long);
         itoa_l(l, buf, 16);
+        
+        if ((*format)[-1] == 'x')
+            make_lower(buf);
+        
         return gprintf_str(buf, min_length, precision, zero_pad, left_justify, nc, n, a, write);
     }
     else if ((*format)[0] == '%')
