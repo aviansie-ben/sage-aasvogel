@@ -1,7 +1,5 @@
-# Output directories
-bin/
-img/
-obj/
+# Build directory
+build/
 
 # Documentation output
 doxygen-generated.cfg
@@ -12,7 +10,6 @@ sa.img
 
 # Geany files
 project.geany
-geany_run_script.sh
 
 # Various debugging files
 serial.out
