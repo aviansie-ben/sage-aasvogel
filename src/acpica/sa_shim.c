@@ -52,9 +52,9 @@ void* AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS Where, ACPI_SIZE Length)
 {
     uint32 offset = 0;
     
-    if ((Where & FRAME_MASK) != 0)
+    if ((Where & FRAME_OFFSET_MASK) != 0)
     {
-        offset = (Where & FRAME_MASK);
+        offset = (Where & FRAME_OFFSET_MASK);
         Length += offset;
     }
     
@@ -77,10 +77,10 @@ void AcpiOsUnmapMemory(void* LogicalAddress, ACPI_SIZE Size)
 {
     addr_v address = (addr_v) LogicalAddress;
     
-    if ((address & FRAME_MASK) != 0)
+    if ((address & FRAME_OFFSET_MASK) != 0)
     {
-        Size += address & FRAME_MASK;
-        address &= ~FRAME_MASK;
+        Size += address & FRAME_OFFSET_MASK;
+        address &= ~FRAME_OFFSET_MASK;
     }
     
     if (address >= 0xC0000000 && address < 0xC0100000) return;

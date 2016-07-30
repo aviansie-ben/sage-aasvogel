@@ -48,7 +48,7 @@ static void _init_map_range(addr_v start, addr_v end, uint64 flags)
     flags |= PT_ENTRY_PRESENT;
     if (!kmem_page_pge_enabled) flags &= (uint64)~PT_ENTRY_GLOBAL;
     
-    for (start &= (addr_v)~FRAME_MASK; start < end; start += FRAME_SIZE)
+    for (start &= PAGE_MASK; start < end; start += FRAME_SIZE)
     {
         if (kmem_page_pae_enabled) result = kmem_page_pae_set(&kernel_page_context, start, (addr_p)(start - KERNEL_VIRTUAL_ADDRESS_BEGIN), flags);
         else crash("Legacy paging not implemented!");
@@ -66,7 +66,7 @@ static void _init_map_kmalloc_early(uint64 flags)
     flags |= PT_ENTRY_PRESENT;
     if (!kmem_page_pge_enabled) flags &= (uint64)~PT_ENTRY_GLOBAL;
     
-    for (addr = kmem_early_min_alloc & (addr_v)~FRAME_MASK; addr < kmem_early_next_alloc; addr += FRAME_SIZE)
+    for (addr = kmem_early_min_alloc & PAGE_MASK; addr < kmem_early_next_alloc; addr += FRAME_SIZE)
     {
         if (kmem_page_pae_enabled) result = kmem_page_pae_set(&kernel_page_context, addr, (addr_p)(addr - KERNEL_VIRTUAL_ADDRESS_BEGIN), flags);
         else crash("Legacy paging not implemented!");

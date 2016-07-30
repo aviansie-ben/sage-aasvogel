@@ -10,6 +10,8 @@
 #define PAGE_PHYSICAL_ADDRESS_MASK_64 0x7FFFFFFFFFFFF000u
 #define PAGE_PHYSICAL_ADDRESS_MASK_32 0xFFFFF000u
 
+#define PAGE_MASK ~(addr_v)(FRAME_OFFSET_MASK)
+
 typedef uint32 addr_v;
 
 enum pdpt_entry_flags

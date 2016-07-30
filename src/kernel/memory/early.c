@@ -242,9 +242,9 @@ void kmem_early_finalize(void)
     _dump_top_allocators();
     
     // The next allocation address should be page-aligned now.
-    if ((kmem_early_next_alloc & FRAME_MASK) != 0)
+    if ((kmem_early_next_alloc & FRAME_OFFSET_MASK) != 0)
     {
-        kmem_early_next_alloc |= FRAME_MASK;
+        kmem_early_next_alloc |= FRAME_OFFSET_MASK;
         kmem_early_next_alloc += 1;
     }
 }

@@ -187,8 +187,8 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
 
 static void _push_region_frames(addr_p region_start, addr_p region_end, bool* high_warn)
 {
-    assert((region_start & FRAME_MASK) == 0);
-    assert((region_end & FRAME_MASK) == 0);
+    assert((region_start & FRAME_OFFSET_MASK) == 0);
+    assert((region_end & FRAME_OFFSET_MASK) == 0);
     
     if (region_end > (1ull << 32) && !high_stack_enabled)
     {
@@ -207,8 +207,8 @@ static void _push_region_frames(addr_p region_start, addr_p region_end, bool* hi
 
 static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_end, bool* high_warn, size_t num_resv_regions, const kernel_resv_region* resv_regions)
 {
-    assert((region_start & FRAME_MASK) == 0);
-    assert((region_end & FRAME_MASK) == 0);
+    assert((region_start & FRAME_OFFSET_MASK) == 0);
+    assert((region_end & FRAME_OFFSET_MASK) == 0);
     
     for (size_t i = 0; i < num_resv_regions; i++)
     {

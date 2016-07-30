@@ -64,7 +64,7 @@ static bool _get_entry(page_dir_ptr_tab* pdpt, addr_v address, addr_p* phys, uin
     if (t == NULL || t->page_phys[pte] == 0)
         return false;
     
-    if (phys != NULL) *phys = (t->page_phys[pte] & PAGE_PHYSICAL_ADDRESS_MASK_64) + (address & FRAME_MASK);
+    if (phys != NULL) *phys = (t->page_phys[pte] & PAGE_PHYSICAL_ADDRESS_MASK_64) + (address & FRAME_OFFSET_MASK);
     if (flags != NULL) *flags = (t->page_phys[pte] & ~PAGE_PHYSICAL_ADDRESS_MASK_64);
     
     return true;
@@ -305,7 +305,7 @@ bool kmem_page_pae_get(page_context* c, addr_v virtual, addr_p* physical, uint64
     addr_p tphys;
     uint64 tflags;
     
-    if (_get_entry(c->pae_pdpt, virtual & (addr_v)~FRAME_MASK, &tphys, &tflags))
+    if (_get_entry(c->pae_pdpt, virtual & PAGE_MASK, &tphys, &tflags))
     {
         if ((tflags & PT_ENTRY_PRESENT) == 0) return false;
         
