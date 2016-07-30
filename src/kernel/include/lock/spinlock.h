@@ -1,6 +1,10 @@
 /**
  * \file
- * TODO: Add file description
+ * \brief Busy-waiting locks for unblocking synchronization.
+ * 
+ * This file defines structs and functions necessary for the use of spinlocks. Spinlocks are the
+ * simplest form of synchronization primitive, allowing for processor-based synchronization based
+ * on busy-waiting.
  */
 
 #ifndef LOCK_SPINLOCK_H
@@ -25,17 +29,6 @@
  */
 typedef struct spinlock
 {
-    /**
-     * \brief A value that represents whether or not the spinlock is currently taken.
-     * 
-     * A value of 0 in this field represents a spinlock which is not currently held, while all other
-     * values represent a spinlock which is currently held by a processor.
-     * 
-     * The value of this field should never be read or written to directly, as it requires special
-     * atomic operations to work properly. Instead, make use of \link spinlock_acquire \endlink,
-     * \link spinlock_release \endlink, and \link spinlock_try_acquire \endlink to indirectly modify
-     * this value.
-     */
     uint32 taken;
 } spinlock;
 
@@ -60,14 +53,14 @@ void eflags_load(uint32 eflags);
 /**
  * \brief Initializes the given spinlock to a state in which it is not held.
  * 
- * \param spinlock The spinlock which should be initialized.
+ * \param lock The spinlock which should be initialized.
  */
 void spinlock_init(spinlock* lock);
 
 void _spinlock_acquire(spinlock* lock, uint32 eflags);
 
 /**
- * \brief Acquires the given spinlock. If the spinlock is already held, waits until it is release
+ * \brief Acquires the given spinlock. If the spinlock is already held, waits until it is released
  *        to acquire it.
  * 
  * While the spinlock is held, all interrupts will be disabled on the current processor to ensure
@@ -83,7 +76,7 @@ void _spinlock_acquire(spinlock* lock, uint32 eflags);
  *          Spinlocks are not released when a thread is suspended, which could result in the new
  *          thread deadlocking if it attempts to acquire the same spinlock.
  * 
- * \param spinlock The spinlock to acquire.
+ * \param lock The spinlock to acquire.
  */
 static inline void spinlock_acquire(spinlock* lock) { _spinlock_acquire(lock, eflags_save()); }
 
@@ -96,7 +89,7 @@ bool _spinlock_try_acquire(spinlock* lock, uint32 eflags);
  * This function will never busy-wait to acquire a spinlock, and will simply return immediately if
  * it fails to acquire the spinlock on the first attempt.
  * 
- * \param spinlock The spinlock to attempt to acquire.
+ * \param lock The spinlock to attempt to acquire.
  * 
  * \return true if the spinlock was acquired successfully, false otherwise.
  */
@@ -120,7 +113,7 @@ uint32 _spinlock_release(spinlock* lock);
  *          incorrect order could result in the EFLAGS register being in an unexpected state, which
  *          could result in interrupts being disabled when they shouldn't.
  * 
- * \param spinlock The spinlock to release.
+ * \param lock The spinlock to release.
  */
 static inline void spinlock_release(spinlock* lock) { eflags_load(_spinlock_release(lock)); }
 
