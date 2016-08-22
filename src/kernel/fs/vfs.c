@@ -1,6 +1,7 @@
 #define ALLOW_UNSAFE_NODE_REFCOUNT
 
 #include <fs/vfs.h>
+#include <fs/initrd.h>
 
 #include <core/crash.h>
 
@@ -39,7 +40,10 @@ void vfs_init(const boot_param* param)
     kmem_pool_small_init(&vfs_node_pool, "vfs_node", sizeof(vfs_node), __alignof__(vfs_node), 0);
     kmem_pool_small_init(&vfs_device_pool, "fs_device", sizeof(fs_device), __alignof__(fs_device), 0);
     
-    // TODO: Mount initrd
+    fs_device* initrd_dev;
+    
+    if (initrd_create(param, &initrd_dev) != 0 || vfs_mount(&vfs_root, initrd_dev) != 0)
+        crash("Failed to mount initrd");
 }
 
 void vfs_register_fs(fs_type* type)
