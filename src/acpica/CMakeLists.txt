@@ -5,7 +5,7 @@ SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 ADD_DEFINITIONS(-DSAGE_AASVOGEL)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -c -O3 -ffreestanding -std=gnu11 -fvisibility=hidden")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -c -O3 -ffreestanding -std=gnu11 -fvisibility=hidden -fno-omit-frame-pointer")
 
 INCLUDE_DIRECTORIES("include" ${KERNEL_INCLUDE_DIRECTORY})
 FILE(GLOB_RECURSE C_SRCS *.c)
