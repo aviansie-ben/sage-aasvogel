@@ -59,10 +59,23 @@ void mutex_acquire(mutex* m)
 
 bool mutex_try_acquire(mutex* m)
 {
-    if (m->owner == sched_thread_current())
+    sched_thread* t = sched_thread_current();
+    uint32 eflags = eflags_save();
+    bool result;
+    asm volatile ("cli");
+    
+    if (m->owner == t)
         crash("Kernel mutex recursive locking detected!");
     
-    return mutex_acquire_fast(m);
+    if ((result = mutex_acquire_fast(m)))
+    {
+        m->owner = t;
+        m->owner_next = t->held_mutexes;
+        t->held_mutexes = m;
+    }
+    
+    eflags_load(eflags);
+    return result;
 }
 
 static void mutex_remove_from_held(sched_thread* t, mutex* m)
