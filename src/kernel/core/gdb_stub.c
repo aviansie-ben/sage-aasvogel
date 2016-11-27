@@ -490,10 +490,14 @@ static void gdb_debug_handler(regs32* r)
         r->eflags &= ~EFLAGS_TF;
         stepping = false;
     }
+
+    if (!suspended)
+    {
+        suspended = true;
+        stop_reason = STOPPED_BREAKPOINT;
+    }
     
-    suspended = true;
-    stop_reason = STOPPED_BREAKPOINT;
-    gdb_send_packet(stop_reason_replies[STOPPED_BREAKPOINT]);
+    gdb_send_packet(stop_reason_replies[stop_reason]);
     
     gdb_loop(r);
 }
@@ -542,6 +546,8 @@ void gdb_stub_break(int reason)
         
         suspended = true;
         stop_reason = reason;
+
+        asm volatile ("int $3");
         
         eflags_load(eflags);
     }
