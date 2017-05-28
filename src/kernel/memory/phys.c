@@ -6,6 +6,7 @@
 #include <core/klog.h>
 #include <core/crash.h>
 #include <assert.h>
+#include <math.h>
 
 #define EMERG_STACK_SIZE 128
 #define FRAMES_PER_STACK_FRAME ((FRAME_SIZE / sizeof(addr_p)) - 1)
@@ -328,11 +329,17 @@ void kmem_phys_init(const boot_param* param)
     high_stack.next_stack_frame = FRAME_NULL;
     high_stack_top = 0;
     
-    kernel_resv_region resv_regions[] = {
-        { 0x0, 0x1000, "NULL FRAME" },
-        { (addr_p)(uint32) &_ld_kernel_begin, (addr_p)(uint32) &_ld_kernel_end, "KERNEL BIN" },
-        { (addr_p)(uint32) &_ld_kmalloc_early_begin - 0xC0000000, (addr_p) kmem_early_next_alloc - 0xC0000000, "KMALLOC_EARLY" }
-    };
+    kernel_resv_region resv_regions[3 + param->num_modules];
+    
+    resv_regions[0] = (kernel_resv_region) { 0x0, 0x1000, "NULL FRAME" };
+    resv_regions[1] = (kernel_resv_region) { (addr_p)(uint32) &_ld_kernel_begin, (addr_p)(uint32) &_ld_kernel_end, "KERNEL BIN" };
+    resv_regions[2] = (kernel_resv_region) { (addr_p)(uint32) &_ld_kmalloc_early_begin - 0xC0000000, (addr_p) kmem_early_next_alloc - 0xC0000000, "KMALLOC_EARLY" };
+    
+    for (size_t i = 0; i < param->num_modules; i++)
+    {
+        const boot_param_module_info* module = &param->modules[i];
+        resv_regions[i + 3] = (kernel_resv_region) { ROUND_DOWN(module->start_address, FRAME_SIZE), ROUND_UP(module->end_address, FRAME_SIZE), module->name };
+    }
     
     _push_unallocated(param, sizeof(resv_regions) / sizeof(*resv_regions), resv_regions);
     
