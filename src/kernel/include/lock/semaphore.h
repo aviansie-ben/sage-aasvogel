@@ -8,7 +8,7 @@
 typedef struct semaphore
 {
     spinlock lock;
-    
+
     int value;
     sched_thread_queue wait_queue;
 } semaphore;

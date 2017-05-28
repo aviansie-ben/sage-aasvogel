@@ -28,7 +28,7 @@ typedef struct
     const char* name;
     uint32 address;
     uint32 size;
-    
+
     uint8 type;
     uint8 visibility;
 } kernel_symbol;

@@ -13,20 +13,20 @@ typedef struct mempool_small
 {
     spinlock lock;
     const char* name;
-    
+
     uint32 obj_size;
-    
+
     uint32 frames_per_part;
     uint32 part_first_offset;
     frame_alloc_flags frame_flags;
-    
+
     uint32 num_total;
     uint32 num_free;
-    
+
     mempool_small_part* parts_empty;
     mempool_small_part* parts_partial;
     mempool_small_part* parts_full;
-    
+
     struct mempool_small* next;
 } mempool_small;
 

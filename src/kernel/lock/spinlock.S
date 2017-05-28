@@ -5,10 +5,10 @@
 eflags_save:
     push ebp
     mov ebp, esp
-    
+
     pushfd
     mov eax, [ebp - 4]
-    
+
     mov esp, ebp
     pop ebp
     ret
@@ -19,11 +19,11 @@ eflags_save:
 eflags_load:
     push ebp
     mov ebp, esp
-    
+
     mov eax, [ebp + 8]
     push eax
     popfd
-    
+
     mov esp, ebp
     pop ebp
     ret
@@ -34,10 +34,10 @@ eflags_load:
 spinlock_init:
     push ebp
     mov ebp, esp
-    
+
     mov eax, [ebp + 8]
     mov dword ptr [eax], 0
-    
+
     mov esp, ebp
     pop ebp
     ret
@@ -48,26 +48,26 @@ spinlock_init:
 _spinlock_acquire:
     push ebp
     mov ebp, esp
-    
+
     cli # A thread must not be interrupted while it is attempting to acquire or
         # when it has acquired a spinlock.
-    
+
     mov eax, [ebp + 8]
-    
+
 .La_retry:
     lock bts dword ptr [eax], 0 # Attempt to acquire the lock.
     jnc .La_cleanup
-    
+
     # Wait until the lock appears to be free, then retry.
 .La_wait:
     pause # Tells the CPU that we're in a spinlock. Avoids problems when
           # hyperthreading is enabled.
-    
+
     cmp dword ptr [eax], 0
     jne .La_wait
-    
+
     jmp .La_retry
-    
+
 .La_cleanup:
     # Store the old value of the EFLAGS register in the spinlock to be restored
     # when spinlock_release is called. The carry flag will not be stored, and
@@ -76,7 +76,7 @@ _spinlock_acquire:
     mov ecx, [ebp + 12]
     or ecx, 1
     mov [eax], ecx
-    
+
     mov esp, ebp
     pop ebp
     ret
@@ -87,24 +87,24 @@ _spinlock_acquire:
 _spinlock_try_acquire:
     push ebp
     mov ebp, esp
-    
+
     cli # A thread must not be interrupted while it is attempting to acquire or
         # when it has acquired a spinlock.
-    
+
     mov eax, [ebp + 8]
-    
+
     lock bts dword ptr [eax], 0 # Attempt to acquire the lock.
     jnc .Lta_cleanup
-    
+
     # We have failed to acquire the lock, so give up.
     push [ebp + 12]
     popfd
-    
+
     mov esp, ebp
     pop ebp
     mov eax, 0
     ret
-    
+
 .Lta_cleanup:
     # Store the old value of the EFLAGS register in the spinlock to be restored
     # when spinlock_release is called. The carry flag will not be stored, and
@@ -113,7 +113,7 @@ _spinlock_try_acquire:
     mov ecx, [ebp + 12]
     or ecx, 1
     mov [eax], ecx
-    
+
     mov esp, ebp
     pop ebp
     mov eax, 1
@@ -125,15 +125,15 @@ _spinlock_try_acquire:
 _spinlock_release:
     push ebp
     mov ebp, esp
-    
+
     mov ecx, [ebp + 8]
-    
+
     # Read the old EFLAGS value.
     mov eax, [ecx]
-    
+
     # Free the lock.
     mov dword ptr [ecx], 0
-    
+
     mov esp, ebp
     pop ebp
     ret

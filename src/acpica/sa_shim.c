@@ -24,7 +24,7 @@ ACPI_STATUS AcpiOsTerminate(void)
 ACPI_PHYSICAL_ADDRESS AcpiOsGetRootPointer(void)
 {
     ACPI_PHYSICAL_ADDRESS Ret;
-    
+
     AcpiFindRootPointer(&Ret);
     return Ret;
 }
@@ -51,24 +51,24 @@ ACPI_STATUS AcpiOsPhysicalTableOverride(ACPI_TABLE_HEADER* ExistingTable, ACPI_P
 void* AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS Where, ACPI_SIZE Length)
 {
     uint32 offset = 0;
-    
+
     if ((Where & FRAME_OFFSET_MASK) != 0)
     {
         offset = (Where & FRAME_OFFSET_MASK);
         Length += offset;
     }
-    
+
     if (Where < 0x100000) return (void*)(uint32)(Where + 0xC0000000);
-    
+
     Length = (Length + FRAME_SIZE - 1) / FRAME_SIZE;
     addr_v address = (addr_v) kmem_virt_alloc(Length);
-    
+
     for (uint32 i = 0; i < Length; i++)
     {
         if (!kmem_page_global_map(address + FRAME_SIZE * i, 0, false, Where + FRAME_SIZE * i))
             crash("Failed to map ACPI memory!");
     }
-    
+
     kmem_page_flush_region(address, Length);
     return (void*) (address + offset);
 }
@@ -76,20 +76,20 @@ void* AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS Where, ACPI_SIZE Length)
 void AcpiOsUnmapMemory(void* LogicalAddress, ACPI_SIZE Size)
 {
     addr_v address = (addr_v) LogicalAddress;
-    
+
     if ((address & FRAME_OFFSET_MASK) != 0)
     {
         Size += address & FRAME_OFFSET_MASK;
         address &= ~FRAME_OFFSET_MASK;
     }
-    
+
     if (address >= 0xC0000000 && address < 0xC0100000) return;
-    
+
     Size = (Size + FRAME_SIZE - 1) / FRAME_SIZE;
-    
+
     for (uint32 i = 0; i < Size; i++)
         kmem_page_global_unmap(address + FRAME_SIZE * i, false);
-    
+
     kmem_page_flush_region(address, Size);
 }
 
@@ -148,9 +148,9 @@ void AcpiOsWaitEventsComplete(void)
 ACPI_STATUS AcpiOsCreateMutex(ACPI_MUTEX* OutHandle)
 {
     *OutHandle = AcpiOsAllocate(sizeof(mutex));
-    
+
     if (*OutHandle == NULL) return AE_NO_MEMORY;
-    
+
     mutex_init(*OutHandle);
     return AE_OK;
 }
@@ -182,9 +182,9 @@ void AcpiOsReleaseMutex(ACPI_MUTEX Handle)
 ACPI_STATUS AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_SEMAPHORE* OutHandle)
 {
     *OutHandle = AcpiOsAllocate(sizeof(semaphore));
-    
+
     if (*OutHandle == NULL) return AE_NO_MEMORY;
-    
+
     semaphore_init(*OutHandle, InitialUnits);
     return AE_OK;
 }
@@ -213,12 +213,12 @@ ACPI_STATUS AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Time
                 {
                     semaphore_signal(Handle);
                 }
-                
+
                 return AE_TIME;
             }
         }
     }
-    
+
     return AE_OK;
 }
 
@@ -226,16 +226,16 @@ ACPI_STATUS AcpiOsSignalSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units)
 {
     for (UINT32 i = 0; i < Units; i++)
         semaphore_signal(Handle);
-    
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsCreateLock(ACPI_SPINLOCK* OutHandle)
 {
     *OutHandle = AcpiOsAllocate(sizeof(spinlock));
-    
+
     if (*OutHandle == NULL) return AE_NO_MEMORY;
-    
+
     spinlock_init(*OutHandle);
     return AE_OK;
 }
@@ -282,21 +282,21 @@ ACPI_STATUS AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32* Value, UINT32 Width)
     if (Width == 8)
     {
         UINT8 v;
-        
+
         asm volatile ("inb %1, %0" : "=a" (v) : "dN" ((uint16)Address));
         *Value = v;
     }
     else if (Width == 16)
     {
         UINT16 v;
-        
+
         asm volatile ("inw %1, %0" : "=a" (v) : "dN" ((uint16)Address));
         *Value = v;
     }
     else if (Width == 32)
     {
         UINT32 v;
-        
+
         asm volatile ("inl %1, %0" : "=a" (v) : "dN" ((uint16)Address));
         *Value = v;
     }
@@ -304,7 +304,7 @@ ACPI_STATUS AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32* Value, UINT32 Width)
     {
         return AE_BAD_PARAMETER;
     }
-    
+
     return AE_OK;
 }
 
@@ -318,7 +318,7 @@ ACPI_STATUS AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width)
         asm volatile ("outl %1, %0" : : "dN" ((uint16)Address), "a" (Value));
     else
         return AE_BAD_PARAMETER;
-    
+
     return AE_OK;
 }
 
@@ -348,10 +348,10 @@ static int printf_to_buf(void* i, char c)
         {
             printf_buf[printf_buf_pos] = '\0';
             printf_buf_pos = 0;
-            
+
             char* msg = NULL;
             uint32 lvl;
-            
+
             if (!strncmp(printf_buf, ACPICA_KLOG_DEBUG, strlen(ACPICA_KLOG_DEBUG)))
             {
 #ifdef ACPICA_DEBUG
@@ -379,21 +379,21 @@ static int printf_to_buf(void* i, char c)
                 msg = printf_buf;
                 lvl = KLOG_LEVEL_NOTICE;
             }
-            
+
             if (msg != NULL)
                 klog(lvl, "acpica: %s\n", msg);
         }
     }
     else if (printf_buf_pos != sizeof(printf_buf) - 1)
         printf_buf[printf_buf_pos++] = c;
-    
+
     return E_SUCCESS;
 }
 
 void AcpiOsPrintf(const char* Format, ...)
 {
     va_list vararg;
-    
+
     va_start(vararg, Format);
     gprintf(Format, 0xffffffffu, NULL, printf_to_buf, vararg);
     va_end(vararg);

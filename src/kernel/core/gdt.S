@@ -6,10 +6,10 @@ gdt_flush:
     # We are passed a pointer to a structure that the CPU uses to find and load
     # the GDT.
     mov eax, [esp + 0x4]
-    
+
     # Request that the CPU load the GDT pointer we have received
     lgdt [eax]
-    
+
     # Update the segment registers to make sure the CPU isn't caching any of
     # them.
     mov ax, 0x10
@@ -18,7 +18,7 @@ gdt_flush:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    
+
     # The only way to update CS is with a far jump, so we do that here.
     jmp 0x08 : .Lend
 
@@ -35,10 +35,10 @@ tss_load:
     mov eax, [esp + 0x4]
     mov ecx, 8
     mul ecx
-    
+
     # Request that the CPU load the TSS entry at the offset stored in AX.
     ltr ax
-    
+
     ret
 .size tss_load, .-tss_load
 

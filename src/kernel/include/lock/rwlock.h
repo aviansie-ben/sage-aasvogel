@@ -8,10 +8,10 @@
 typedef struct rwlock
 {
     spinlock lock;
-    
+
     uint32 readers;
     uint32 writers;
-    
+
     sched_thread_queue read_queue;
     sched_thread_queue write_queue;
 } rwlock;

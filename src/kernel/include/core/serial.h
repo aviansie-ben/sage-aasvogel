@@ -14,10 +14,10 @@ typedef void (*serial_sink_function)(regs32* r, struct serial_port* p, char c);
 typedef struct serial_port
 {
     spinlock lock;
-    
+
     uint16 io_port;
     bool interrupts_enabled;
-    
+
     serial_sink_function recv_sink;
     char* recv_buf;
     int recv_buf_len;
@@ -25,7 +25,7 @@ typedef struct serial_port
     int recv_buf_head;
     int recv_buf_tail;
     cond_var_s recv_buf_ready;
-    
+
     char* send_buf;
     int send_buf_len;
     int send_buf_maxlen;

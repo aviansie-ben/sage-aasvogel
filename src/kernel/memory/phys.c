@@ -19,7 +19,7 @@ typedef struct
 {
     addr_p start_address;
     addr_p end_address;
-    
+
     const char* name;
 } kernel_resv_region;
 
@@ -59,10 +59,10 @@ static void _push_free_frame_stack(uint32* stack_top, volatile free_frame_stack*
         addr_p old_stack;
         if (!_kmem_page_global_get((addr_v)stack, &old_stack, NULL))
             crash("Free frame stack broken");
-        
+
         if (!_kmem_page_global_map((addr_v)stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, frame))
             crash("Free frame stack broken!");
-        
+
         *stack_top = 0;
         stack->next_stack_frame = old_stack;
     }
@@ -71,7 +71,7 @@ static void _push_free_frame_stack(uint32* stack_top, volatile free_frame_stack*
 static void _push_free_frame(addr_p frame)
 {
     kmem_free_frames++;
-    
+
     if (frame < (1ull << 20))
     {
         _push_free_frame_stack(&low_stack_top, &low_stack, frame);
@@ -97,28 +97,28 @@ static void _push_free_frame(addr_p frame)
 static addr_p _pop_free_frame(uint32* stack_top, volatile free_frame_stack* stack)
 {
     addr_p frame;
-    
+
     if (*stack_top != 0)
     {
         frame = stack->free_frames[--(*stack_top)];
         stack->free_frames[*stack_top] = FRAME_NULL;
-        
+
         kmem_free_frames--;
-        
+
         return frame;
     }
     else if (stack->next_stack_frame != FRAME_NULL)
     {
         if (!_kmem_page_global_get((addr_v)stack, &frame, NULL))
             crash("Free frame stack broken");
-        
+
         *stack_top = FRAMES_PER_STACK_FRAME;
-        
+
         if (!_kmem_page_global_map((addr_v)stack, PT_ENTRY_WRITEABLE | PT_ENTRY_NO_EXECUTE, true, stack->next_stack_frame))
             crash("Free frame stack broken!");
-        
+
         kmem_free_frames--;
-        
+
         return frame;
     }
     else
@@ -130,14 +130,14 @@ static addr_p _pop_free_frame(uint32* stack_top, volatile free_frame_stack* stac
 static addr_p _pop_emerg_frame(void)
 {
     addr_p frame;
-    
+
     if (emerg_stack_top != 0)
     {
         frame = emerg_stack[--emerg_stack_top];
         emerg_stack[emerg_stack_top] = FRAME_NULL;
-        
+
         kmem_free_frames--;
-        
+
         return frame;
     }
     else
@@ -149,7 +149,7 @@ static addr_p _pop_emerg_frame(void)
 static addr_p _alloc_frame(frame_alloc_flags flags)
 {
     addr_p frame = FRAME_NULL;
-    
+
     while (true)
     {
         if ((flags & FA_LOW_MEM) != 0)
@@ -160,28 +160,28 @@ static addr_p _alloc_frame(frame_alloc_flags flags)
         {
             if ((flags & FA_32BIT) == 0 && high_stack_enabled)
                 frame = _pop_free_frame(&high_stack_top, &high_stack);
-            
+
             if (frame == FRAME_NULL)
                 frame = _pop_free_frame(&free_stack_top, &free_stack);
-            
+
             if (frame == FRAME_NULL && (flags & FA_EMERG) != 0)
             {
                 frame = _pop_emerg_frame();
-                
+
                 if (frame == FRAME_NULL)
                     frame = _pop_free_frame(&low_stack_top, &low_stack);
             }
         }
-        
+
         if (frame == FRAME_NULL && (flags & FA_WAIT) != 0)
         {
             spinlock_release(&free_stack_lock);
             // TODO Wait for a frame to be freed
             spinlock_acquire(&free_stack_lock);
-            
+
             continue;
         }
-        
+
         return frame;
     }
 }
@@ -190,7 +190,7 @@ static void _push_region_frames(addr_p region_start, addr_p region_end, bool* hi
 {
     assert((region_start & FRAME_OFFSET_MASK) == 0);
     assert((region_end & FRAME_OFFSET_MASK) == 0);
-    
+
     if (region_end > (1ull << 32) && !high_stack_enabled)
     {
         if (!*high_warn)
@@ -198,10 +198,10 @@ static void _push_region_frames(addr_p region_start, addr_p region_end, bool* hi
             klog(KLOG_LEVEL_WARN, "Memory beyond 4GiB detected, but unusable since PAE is disabled\n");
             *high_warn = true;
         }
-        
+
         region_end = (1ull << 32);
     }
-    
+
     for (addr_p addr = region_start; addr != region_end; addr += FRAME_SIZE)
         _push_free_frame(addr);
 }
@@ -210,16 +210,16 @@ static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_
 {
     assert((region_start & FRAME_OFFSET_MASK) == 0);
     assert((region_end & FRAME_OFFSET_MASK) == 0);
-    
+
     for (size_t i = 0; i < num_resv_regions; i++)
     {
         const kernel_resv_region* rr = &resv_regions[i];
-        
+
         if (rr->end_address > region_start && rr->end_address < region_end)
         {
             if (rr->start_address > region_start)
                 _push_region_non_reserved_frames(region_start, rr->start_address, high_warn, num_resv_regions, resv_regions);
-            
+
 #ifdef MMAP_DEBUG
             klog(
                 KLOG_LEVEL_DEBUG,
@@ -229,14 +229,14 @@ static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_
                 rr->name
             );
 #endif
-            
+
             _push_region_non_reserved_frames(rr->end_address, region_end, high_warn, num_resv_regions, resv_regions);
             return;
         }
         else if (rr->start_address > region_start && rr->start_address < region_end)
         {
             _push_region_non_reserved_frames(region_start, rr->end_address, high_warn, num_resv_regions, resv_regions);
-            
+
 #ifdef MMAP_DEBUG
             klog(
                 KLOG_LEVEL_DEBUG,
@@ -246,10 +246,10 @@ static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_
                 rr->name
             );
 #endif
-            
+
             if (rr->end_address < region_end)
                 _push_region_non_reserved_frames(rr->end_address, region_end, high_warn, num_resv_regions, resv_regions);
-            
+
             return;
         }
         else if (rr->start_address <= region_start && rr->end_address >= region_end)
@@ -266,7 +266,7 @@ static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_
             return;
         }
     }
-    
+
 #ifdef MMAP_DEBUG
     klog(
         KLOG_LEVEL_DEBUG,
@@ -275,38 +275,38 @@ static void _push_region_non_reserved_frames(addr_p region_start, addr_p region_
         region_end
     );
 #endif
-    
+
     _push_region_frames(region_start, region_end, high_warn);
 }
 
 static void _push_unallocated(const boot_param* param, size_t num_resv_regions, const kernel_resv_region* resv_regions)
 {
     bool high_warn = false;
-    
+
     const boot_param_mmap_region* region;
-    
+
     addr_p region_begin;
     addr_p region_end;
-    
+
     for (size_t i = 0; i < param->num_mmap_regions; i++)
     {
         region = &param->mmap_regions[i];
-        
+
         region_begin = region->start_address;
         region_end = region->end_address;
-        
+
         region_end &= ~0xfffull;
-        
+
         if ((region_begin & 0xfffull) != 0)
         {
             region_begin |= 0xfffull;
             region_begin += 1;
         }
-        
+
         if (region_begin == region_end) continue;
-        
+
         kmem_total_frames += (uint32)((region_end - region_begin) / FRAME_SIZE);
-        
+
         if (region->type == 1)
         {
             _push_region_non_reserved_frames(region_begin, region_end, &high_warn, num_resv_regions, resv_regions);
@@ -324,25 +324,25 @@ void kmem_phys_init(const boot_param* param)
 {
     free_stack.next_stack_frame = FRAME_NULL;
     free_stack_top = 0;
-    
+
     high_stack_enabled = kmem_page_pae_enabled;
     high_stack.next_stack_frame = FRAME_NULL;
     high_stack_top = 0;
-    
+
     kernel_resv_region resv_regions[3 + param->num_modules];
-    
+
     resv_regions[0] = (kernel_resv_region) { 0x0, 0x1000, "NULL FRAME" };
     resv_regions[1] = (kernel_resv_region) { (addr_p)(uint32) &_ld_kernel_begin, (addr_p)(uint32) &_ld_kernel_end, "KERNEL BIN" };
     resv_regions[2] = (kernel_resv_region) { (addr_p)(uint32) &_ld_kmalloc_early_begin - 0xC0000000, (addr_p) kmem_early_next_alloc - 0xC0000000, "KMALLOC_EARLY" };
-    
+
     for (size_t i = 0; i < param->num_modules; i++)
     {
         const boot_param_module_info* module = &param->modules[i];
         resv_regions[i + 3] = (kernel_resv_region) { ROUND_DOWN(module->start_address, FRAME_SIZE), ROUND_UP(module->end_address, FRAME_SIZE), module->name };
     }
-    
+
     _push_unallocated(param, sizeof(resv_regions) / sizeof(*resv_regions), resv_regions);
-    
+
     klog(KLOG_LEVEL_INFO, "Found %dKiB of memory, with %dKiB free.\n", kmem_total_frames * 4, kmem_free_frames * 4);
     init_done = true;
 }
@@ -350,20 +350,20 @@ void kmem_phys_init(const boot_param* param)
 addr_p kmem_frame_alloc(frame_alloc_flags flags)
 {
     addr_p frame;
-    
+
     assert(init_done);
-    
+
     spinlock_acquire(&free_stack_lock);
     frame = _alloc_frame(flags);
     spinlock_release(&free_stack_lock);
-    
+
     return frame;
 }
 
 void kmem_frame_free(addr_p frame)
 {
     assert(init_done);
-    
+
     spinlock_acquire(&free_stack_lock);
     _push_free_frame(frame);
     spinlock_release(&free_stack_lock);
@@ -373,15 +373,15 @@ size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flag
 {
     addr_p frame;
     size_t i;
-    
+
     assert(init_done);
-    
+
     spinlock_acquire(&free_stack_lock);
-    
+
     for (i = 0; i < num_frames; i++)
     {
         frame = _alloc_frame(flags);
-        
+
         if (frame != FRAME_NULL)
         {
             *frames++ = frame;
@@ -391,7 +391,7 @@ size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flag
             break;
         }
     }
-    
+
     spinlock_release(&free_stack_lock);
     return i;
 }
@@ -399,7 +399,7 @@ size_t kmem_frame_alloc_many(addr_p* frames, size_t num_frames, frame_alloc_flag
 void kmem_frame_free_many(const addr_p* frames, size_t num_frames)
 {
     assert(init_done);
-    
+
     spinlock_acquire(&free_stack_lock);
     while (num_frames-- != 0)
     {

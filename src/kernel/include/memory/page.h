@@ -33,7 +33,7 @@ enum pd_entry_flags
     PD_ENTRY_LARGE_PAGE    = (1 << 7),
     PD_ENTRY_GLOBAL        = (1 << 8),
     PD_ENTRY_NO_EXECUTE    = (1ull << 63),
-    
+
     PD_ENTRY_DEF_KERNEL    = PD_ENTRY_WRITEABLE,
     PD_ENTRY_DEF_USER      = PD_ENTRY_WRITEABLE | PD_ENTRY_USER
 };
@@ -62,15 +62,15 @@ struct page_table_legacy;
 typedef struct page_context
 {
     spinlock lock;
-    
+
     union
     {
         struct page_dir_ptr_tab* pae_pdpt;
         struct page_dir_legacy* legacy_dir;
     };
-    
+
     uint32 physical_address;
-    
+
     struct page_context* next;
     struct page_context* prev;
 } page_context;

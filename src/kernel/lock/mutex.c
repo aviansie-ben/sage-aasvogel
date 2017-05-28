@@ -8,7 +8,7 @@ void mutex_init(mutex* m)
     m->taken = 0;
     m->owner = NULL;
     m->owner_next = NULL;
-    
+
     sched_thread_queue_init(&m->wait_queue);
 }
 
@@ -23,14 +23,14 @@ void mutex_acquire(mutex* m)
     sched_thread* t = sched_thread_current();
     uint32 eflags = eflags_save();
     asm volatile ("cli");
-    
+
     if (m->owner == t)
         crash("Kernel mutex recursive locking detected!");
-    
+
     if (!mutex_acquire_fast(m))
     {
         spinlock_acquire(&m->wait_queue.lock);
-        
+
         if (!mutex_acquire_fast(m))
         {
             t->status = STS_BLOCKING;
@@ -41,7 +41,7 @@ void mutex_acquire(mutex* m)
         else
         {
             spinlock_release(&m->wait_queue.lock);
-            
+
             m->owner = t;
             m->owner_next = t->held_mutexes;
             t->held_mutexes = m;
@@ -53,7 +53,7 @@ void mutex_acquire(mutex* m)
         m->owner_next = t->held_mutexes;
         t->held_mutexes = m;
     }
-    
+
     eflags_load(eflags);
 }
 
@@ -63,17 +63,17 @@ bool mutex_try_acquire(mutex* m)
     uint32 eflags = eflags_save();
     bool result;
     asm volatile ("cli");
-    
+
     if (m->owner == t)
         crash("Kernel mutex recursive locking detected!");
-    
+
     if ((result = mutex_acquire_fast(m)))
     {
         m->owner = t;
         m->owner_next = t->held_mutexes;
         t->held_mutexes = m;
     }
-    
+
     eflags_load(eflags);
     return result;
 }
@@ -81,7 +81,7 @@ bool mutex_try_acquire(mutex* m)
 static void mutex_remove_from_held(sched_thread* t, mutex* m)
 {
     mutex* pm = NULL;
-    
+
     for (mutex* hm = t->held_mutexes; hm != NULL; pm = hm, hm = hm->owner_next)
     {
         if (hm == m)
@@ -90,11 +90,11 @@ static void mutex_remove_from_held(sched_thread* t, mutex* m)
                 t->held_mutexes = hm->owner_next;
             else
                 pm->owner_next = hm->owner_next;
-            
+
             return;
         }
     }
-    
+
     crash("Thread held_mutexes linked list corrupted");
 }
 
@@ -102,19 +102,19 @@ void mutex_release(mutex* m)
 {
     sched_thread* t = sched_thread_current();
     sched_thread* nt;
-    
+
     if (m->owner != t)
         crash("Kernel mutex released by non-owner!");
-    
+
     mutex_remove_from_held(t, m);
-    
+
     spinlock_acquire(&m->wait_queue.lock);
     if ((nt = sched_thread_dequeue(&m->wait_queue)) != NULL)
     {
         m->owner = nt;
         m->owner_next = nt->held_mutexes;
         nt->held_mutexes = m;
-        
+
         sched_thread_wake(nt);
     }
     else
@@ -123,7 +123,7 @@ void mutex_release(mutex* m)
         m->owner_next = NULL;
         m->taken = 0;
     }
-    
+
     asm volatile ("mfence" : : : "memory");
     spinlock_release(&m->wait_queue.lock);
 }

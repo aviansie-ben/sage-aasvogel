@@ -9,7 +9,7 @@ bool msr_is_supported(void)
 uint64 msr_read(uint32 msr)
 {
     uint32 lo, hi;
-    
+
     asm volatile ("rdmsr" : "=a" (lo), "=d" (hi) : "c" (msr));
     return (uint64)lo | ((uint64)hi << 32);
 }

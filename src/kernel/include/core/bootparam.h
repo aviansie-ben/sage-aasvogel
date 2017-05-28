@@ -6,14 +6,14 @@
 
 typedef struct {
     const char* name;
-    
+
     uint64 start_address;
     uint64 end_address;
 } boot_param_module_info;
 
 typedef struct {
     uint32 type;
-    
+
     uint64 start_address;
     uint64 end_address;
 } boot_param_mmap_region;
@@ -21,10 +21,10 @@ typedef struct {
 typedef struct {
     size_t num_cmdline_parts;
     const char** cmdline_parts;
-    
+
     size_t num_modules;
     const boot_param_module_info* modules;
-    
+
     size_t num_mmap_regions;
     const boot_param_mmap_region* mmap_regions;
 } boot_param;

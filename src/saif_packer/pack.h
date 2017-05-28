@@ -8,7 +8,7 @@ typedef struct file_to_pack
 {
     char name[SAIF_NAME_MAX + 1];
     uint32_t selected_block;
-    
+
     const char* path;
     uint32_t length;
 } file_to_pack;
@@ -17,13 +17,13 @@ typedef struct dir_to_pack
 {
     char name[SAIF_NAME_MAX + 1];
     uint32_t selected_block;
-    
+
     const char* path;
-    
+
     uint32_t       files_length;
     uint32_t       files_capacity;
     file_to_pack** files;
-    
+
     uint32_t             dirs_length;
     uint32_t             dirs_capacity;
     struct dir_to_pack** dirs;

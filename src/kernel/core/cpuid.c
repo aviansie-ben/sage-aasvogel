@@ -70,14 +70,14 @@ void cpuid_init(void)
     eax_processor_info eax_info;
     ebx_processor_info ebx_info;
     uint32* vendor_regs = unknown_vendor.vendor_id.regs;
-    
+
     // Run CPUID with EAX=0 to get the maximum EAX value and vendor id
     asm volatile ("cpuid" : "=b" (vendor_regs[0]), "=d" (vendor_regs[1]), "=c" (vendor_regs[2]), "=a" (cpuid_max_eax) : "a"(0));
     unknown_vendor.vendor_id.str[12] = '\0';
-    
+
     // Match the vendor to a known vendor
     cpuid_detected_vendor = &unknown_vendor;
-    
+
     for (i = 0; i < (sizeof(known_vendors) / sizeof(*known_vendors)); i++)
     {
         if (vendor_regs[0] == known_vendors[i].vendor_id.regs[0] && vendor_regs[1] == known_vendors[i].vendor_id.regs[1] && vendor_regs[2] == known_vendors[i].vendor_id.regs[2])
@@ -86,18 +86,18 @@ void cpuid_init(void)
             break;
         }
     }
-    
+
     // Run CPUID with EAX=1 to get processor info and featureset
     asm volatile ("cpuid" : "=a" (eax_info.val), "=b" (ebx_info.val), "=c" (cpuid_features_ecx), "=d" (cpuid_features_edx) : "a"(1));
-    
+
     // Parse the received processor info
     cpuid_processor_type = eax_info.info.processor_type;
     cpuid_family_id = (eax_info.info.family == 0xF) ? (uint16)(0xF + eax_info.info.ext_family) : eax_info.info.family;
     cpuid_model_id = (eax_info.info.family == 0x6 || eax_info.info.family == 0xF) ? (uint8)(eax_info.info.model + (eax_info.info.ext_model << 4)) : eax_info.info.model;
-    
+
     // Run CPUID with EAX=0x80000000 to detect support for extended CPUID functions
     asm volatile ("cpuid" : "=a" (cpuid_max_ext_eax) : "a" (0x80000000) : "ebx", "ecx", "edx");
-    
+
     // If extended CPUID functions are available, use them to get extra feature information
     if (cpuid_max_ext_eax >= 0x80000001u)
     {

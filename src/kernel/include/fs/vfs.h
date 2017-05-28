@@ -66,18 +66,18 @@ typedef struct vfs_device
 {
     const char* name;
     const vfs_device_ops* ops;
-    
+
     uint32 sector_size;
     uint64 num_sectors;
-    
+
     struct vfs_fs_type* fs;
     struct vfs_node* root_node;
-    
+
     struct vfs_node* mountpoint;
-    
+
     void* dev_extra;
     void* fs_extra;
-    
+
     struct vfs_device* next;
 } vfs_device;
 
@@ -85,21 +85,21 @@ typedef struct
 {
     vfs_fs_try_read_function try_read;
     vfs_fs_destroy_function destroy;
-    
+
     vfs_fs_load_function load;
     vfs_fs_unload_function unload;
-    
+
     vfs_fs_create_file_function create_file;
     vfs_fs_create_dir_function create_dir;
     vfs_fs_create_symlink_function create_symlink;
-    
+
     vfs_fs_read_function read;
     vfs_fs_write_function write;
     vfs_fs_read_symlink_function read_symlink;
-    
+
     vfs_fs_iter_function iter;
     vfs_fs_find_function find;
-    
+
     vfs_fs_move_function move;
     vfs_fs_link_function link;
     vfs_fs_unlink_function unlink;
@@ -110,26 +110,26 @@ typedef struct vfs_fs_type
     const char* name;
     const vfs_fs_ops* ops;
     bool is_generic;
-    
+
     struct vfs_fs_type* next;
 } vfs_fs_type;
 
 typedef struct vfs_node
 {
     refcounter refcount;
-    
+
     vfs_device* dev;
     const vfs_fs_ops* ops;
-    
+
     mutex lock;
-    
+
     uint64 inode_no;
-    
+
     uint32 flags;
     uint64 size;
-    
+
     void* extra;
-    
+
     // Note: Doxygen chokes on this unnamed union, so we just tell doxygen to ignore the beginning
     //       and end so it sees the contained members as members of the struct, not the unnamed
     //       union.
@@ -145,7 +145,7 @@ typedef struct vfs_node
 
 typedef struct {
     mutex lock;
-    
+
     size_t size;
     vfs_node** nodes;
 } vfs_node_cache;

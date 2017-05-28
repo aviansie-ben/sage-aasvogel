@@ -32,12 +32,12 @@ typedef struct
 typedef struct
 {
     uint32 link;
-    
+
     uint32 esp0, ss0, esp1, ss1, esp2, ss2;
     uint32 cr3, eip, eflags;
     uint32 eax, ecx, edx, ebx, esp, ebp, esi, edi;
     uint32 es, cs, ss, ds, fs, gs;
-    
+
     uint32 iopb_offset;
     uint8 iopb[GDT_IOPB_SIZE];
 } __attribute__((packed)) tss_entry;

@@ -26,7 +26,7 @@ struct mutex;
 typedef struct
 {
     spinlock lock;
-    
+
     struct sched_thread* first;
     struct sched_thread* last;
 } sched_thread_queue;
@@ -34,7 +34,7 @@ typedef struct
 typedef struct
 {
     spinlock lock;
-    
+
     struct sched_process* first;
     struct sched_process* last;
 } sched_process_queue;
@@ -44,16 +44,16 @@ typedef struct sched_process
     spinlock lock;
     uint64 pid;
     char name[32];
-    
+
     page_context* address_space;
-    
+
     uint64 next_tid;
     struct sched_thread* first_thread;
     sched_thread_queue thread_run_queue;
-    
+
     sched_process_queue* in_queue;
     struct sched_process* next_in_queue;
-    
+
     struct sched_process* next;
 } sched_process;
 
@@ -61,24 +61,24 @@ typedef struct sched_thread
 {
     struct sched_process* process;
     uint64 tid;
-    
+
     uint32 status;
     unsigned long long sleep_until;
-    
+
     spinlock registers_lock;
     volatile bool registers_dirty;
     regs32_saved_t registers;
-    
+
     void* stack_low;
     void* stack_high;
-    
+
     struct sched_thread* next_in_process;
-    
+
     sched_thread_queue* in_queue;
     struct sched_thread* next_in_queue;
-    
+
     struct mutex* held_mutexes;
-    
+
 #ifdef SCHED_DEBUG
     unsigned long long creation;
     unsigned long long run_ticks;

@@ -24,32 +24,32 @@ uint8 _preinit_inb(uint16 port)
 void _preinit_setup_serial()
 {
     if (!_preinit_serial_enable) return;
-    
+
     _preinit_serial_port = *((uint16*) 0x400);
-    
+
     // Disable interrupts (We haven't set up an IDT yet!)
     _preinit_outb((uint16)(_preinit_serial_port + 1), 0x00);
-    
+
     // Set the divisor to 12 (9600 baud)
     _preinit_outb((uint16)(_preinit_serial_port + 3), 0x80);
     _preinit_outb((uint16)(_preinit_serial_port + 0), 0x0C);
     _preinit_outb((uint16)(_preinit_serial_port + 1), 0x00);
-    
+
     // Set the mode to 8N1
     _preinit_outb((uint16)(_preinit_serial_port + 3), 0x03);
-    
+
     // Enable FIFO
     _preinit_outb((uint16)(_preinit_serial_port + 2), 0xC7);
-    
+
     _preinit_write_serial(_preinit_serial_init_msg);
 }
 
 void _preinit_write_serial(const char* message)
 {
     size_t i;
-    
+
     if (_preinit_serial_port == 0) return;
-    
+
     for (i = 0; message[i] != '\0'; i++)
     {
         while ((_preinit_inb((uint16)(_preinit_serial_port + 5)) & 0x20) == 0) ;

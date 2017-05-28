@@ -13,14 +13,14 @@
 typedef struct tty_base
 {
     mutex lock;
-    
+
     uint16 width, height;
-    
+
     void (*flush)(struct tty_base*);
     void (*clear)(struct tty_base*);
     void (*write)(struct tty_base*, char);
     char (*read)(struct tty_base*);
-    
+
     bool supports_cursor;
     uint16 cursor_x, cursor_y;
     bool cursor_hidden;
@@ -29,19 +29,19 @@ typedef struct tty_base
 typedef struct
 {
     tty_base base;
-    
+
     console_color fore_color;
     console_color back_color;
-    
+
     char ansi_cmd_buf[32];
     int ansi_cmd_pos;
-    
+
     bool ansi_hidden;
     bool ansi_inverted;
-    
+
     console_char* buffer;
     uint16 buffer_line;
-    
+
     bool is_active;
 } tty_vc;
 

@@ -6,10 +6,10 @@
 struct __jmp_buf_tag
 {
     uint32 eip;
-    
+
     uint32 esp;
     uint32 ebp;
-    
+
     uint32 ebx;
     uint32 edi;
     uint32 esi;

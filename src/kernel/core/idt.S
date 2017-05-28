@@ -10,10 +10,10 @@ idt_flush:
     # Get the pointer that we have been passed to the structure that points to
     # the IDT
     mov eax, [esp + 0x4]
-    
+
     # Request that the CPU load the IDT pointer we have received
     lidt [eax]
-    
+
     ret
 .size idt_flush, .-idt_flush
 
@@ -25,14 +25,14 @@ interrupt_common:
     push es
     push fs
     push gs
-    
+
     # Load the segment registers for kernel data
     mov ax, 0x10
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    
+
     # If we end up printing a stack trace, we don't want anything below this
     # frame to be printed, so put some marker values on the stack.
     mov edx, esp
@@ -40,49 +40,49 @@ interrupt_common:
     push 0
     mov ebp, esp
     push edx
-    
+
     # Check whether the code we were in before the interrupt was ring 0 code.
     # Ring 0 code calling into an interrupt does not push useresp or ss, so we
     # need to make 8 bytes of room to store these values to avoid clobbering
     # part of the stack if we return into ring 3.
-    
+
     push edx
     call _idt_is_ring0
     add esp, 4
     cmp eax, 0
     je .Ldo_call
-    
+
     sub dword ptr [esp], 8
     sub esp, 8
     sub ebp, 8
     mov eax, esp
     mov ebx, eax
     add ebx, 0x50
-    
+
 .Lalloc_ring0:
     mov ecx, dword ptr [eax + 0x8]
     mov dword ptr [eax], ecx
     add eax, 4
-    
+
     cmp eax, ebx
     jl .Lalloc_ring0
-    
+
     # Find the stack pointer that the ring 0 code was using before the interrupt
     # was called.
     mov [ebx], esp
     add dword ptr [ebx], 0x58
-    
+
     # Find the ring 0 code's SS value.
     mov eax, ss
     mov [ebx + 0x4], eax
-    
+
 .Ldo_call:
     # Call the C interrupt handler
     mov edx, [esp]
     push edx
     call _idt_handle
     add esp, 4
-    
+
     # Now we need to check whether the code we're returning to is ring 0 code.
     # If it is, then the ESP and SS values will not get popped by IRET, so we
     # need to pop them manually.
@@ -90,38 +90,38 @@ interrupt_common:
     push edx
     call _idt_is_ring0
     add esp, 4
-    
+
     # Get rid of the EBP marker values on the stack, as we don't need them after
     # this.
     mov edx, [esp]
     add esp, 0xC
-    
+
     cmp eax, 0
     je .Lreturn
-    
+
     # Pop the SS value that we should switch to.
     mov eax, [edx + 0x48]
     mov ss, eax
-    
+
     # First, we find the location of the original regs32 structure, as well as
     # the new location it should be moved to in order to return with the correct
     # ESP value.
     mov esi, esp
     mov edi, [edx + 0x44]
     sub edi, 0x44
-    
+
     # Next, we need to make sure that the stack pointer is lower than all of the
     # memory we will be manipulating. If it's not, parts of the stack used for
     # the call to memmove might be overwritten during the copy.
     cmp esi, edi
     jb .Lsource_low
-    
+
     mov esp, edi
     jmp .Lfinish_esp_ring0
-    
+
 .Lsource_low:
     mov esp, esi
-    
+
 .Lfinish_esp_ring0:
     # Now that everything's set up, we can safely call memmove to move the
     # regs32 struct to the desired location.
@@ -129,7 +129,7 @@ interrupt_common:
     push esi
     push edi
     call memmove
-    
+
     # Finally, we switch to using the new stack.
     mov esp, edi
 
@@ -140,10 +140,10 @@ interrupt_common:
     pop es
     pop ds
     popa
-    
+
     # Skip the interrupt number and error code that were pushed onto the stack
     add esp, 8
-    
+
     # Return from the interrupt handler
     iret
 .size interrupt_common, .-interrupt_common

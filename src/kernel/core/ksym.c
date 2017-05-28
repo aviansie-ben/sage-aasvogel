@@ -26,20 +26,20 @@ const kernel_symbol* ksym_address_lookup(uint32 virtual_address, uint32* symbol_
 {
     kernel_symbol* ksym = kernel_symbols;
     kernel_symbol* ksym_end = kernel_symbols + num_kernel_symbols;
-    
+
     while (ksym != ksym_end)
     {
         if (is_symbol_match(ksym, virtual_address, flags))
         {
             if (symbol_offset != NULL)
                 *symbol_offset = virtual_address - ksym->address;
-            
+
             return ksym;
         }
-        
+
         ksym++;
     }
-    
+
     return NULL;
 }
 
@@ -48,37 +48,37 @@ static void load_kernel_symtab(elf32_shdr* symtab, elf32_shdr* strtab)
     elf32_sym* sym_entry;
     elf32_sym* sym_end;
     const char* sym_name;
-    
+
     kernel_symbol* ksym;
     char* ksym_name;
-    
+
     num_kernel_symbols = 0;
-    
+
     sym_entry = (elf32_sym*) (symtab->addr + 0xC0000000);
     sym_end = (elf32_sym*) ((uint32)sym_entry + ((symtab->size / symtab->entsize) * symtab->entsize));
-    
+
     while (sym_entry != sym_end)
     {
         if (sym_entry->value != 0 && ELF32_ST_TYPE(sym_entry->info) != STT_SECTION)
             num_kernel_symbols++;
-        
+
         sym_entry = (elf32_sym*) ((uint32) sym_entry + symtab->entsize);
     }
-    
+
     kernel_symbols = ksym = kmalloc_early(sizeof(kernel_symbol) * num_kernel_symbols, __alignof__(kernel_symbol), NULL);
     sym_entry = (elf32_sym*) (symtab->addr + 0xC0000000);
-    
+
     while (sym_entry != sym_end)
     {
         if (sym_entry->value != 0 && ELF32_ST_TYPE(sym_entry->info) != STT_SECTION)
         {
             sym_name = (const char*) (strtab->addr + 0xC0000000 + sym_entry->name);
             ksym->name = ksym_name = kmalloc_early(strlen(sym_name) + 1, 1, NULL);
-            
+
             strcpy(ksym_name, sym_name);
             ksym->address = sym_entry->value;
             ksym->size = sym_entry->size;
-            
+
             switch (ELF32_ST_TYPE(sym_entry->info))
             {
                 case STT_OBJECT:
@@ -91,7 +91,7 @@ static void load_kernel_symtab(elf32_shdr* symtab, elf32_shdr* strtab)
                     ksym->type = KSYM_TYPE_OTHER;
                     break;
             }
-            
+
             if (ELF32_ST_BIND(sym_entry->info) == STB_LOCAL)
             {
                 ksym->visibility = KSYM_VISIBILITY_FILE_LOCAL;
@@ -110,10 +110,10 @@ static void load_kernel_symtab(elf32_shdr* symtab, elf32_shdr* strtab)
                         break;
                 }
             }
-            
+
             ksym++;
         }
-        
+
         sym_entry = (elf32_sym*) ((uint32) sym_entry + symtab->entsize);
     }
 }
@@ -123,12 +123,12 @@ void ksym_load_kernel_symbols(multiboot_info* multiboot)
     elf32_shdr* shdr_entry;
     elf32_shdr* shdr_end;
     elf32_shdr* shdr_strtab;
-    
+
     if (multiboot->flags & MB_FLAG_ELF_SHDR)
     {
         shdr_entry = (elf32_shdr*) (multiboot->elf_shdr_table.addr + 0xC0000000);
         shdr_end = (elf32_shdr*) ((uint32) shdr_entry + (multiboot->elf_shdr_table.num * multiboot->elf_shdr_table.size));
-        
+
         while (shdr_entry != shdr_end)
         {
             if (shdr_entry->type == SHT_SYMTAB && shdr_entry->addr != 0)
@@ -137,10 +137,10 @@ void ksym_load_kernel_symbols(multiboot_info* multiboot)
                 load_kernel_symtab(shdr_entry, shdr_strtab);
                 return;
             }
-            
+
             shdr_entry = (elf32_shdr*) ((uint32) shdr_entry + multiboot->elf_shdr_table.size);
         }
     }
-    
+
     klog(KLOG_LEVEL_WARN, "No kernel symbol table found!\n");
 }
