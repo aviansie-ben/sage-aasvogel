@@ -65,7 +65,7 @@ static void load_kernel_symtab(elf32_shdr* symtab, elf32_shdr* strtab)
         sym_entry = (elf32_sym*) ((uint32) sym_entry + symtab->entsize);
     }
     
-    kernel_symbols = ksym = kmalloc_early(sizeof(elf32_sym) * num_kernel_symbols, __alignof__(elf32_sym), NULL);
+    kernel_symbols = ksym = kmalloc_early(sizeof(kernel_symbol) * num_kernel_symbols, __alignof__(kernel_symbol), NULL);
     sym_entry = (elf32_sym*) (symtab->addr + 0xC0000000);
     
     while (sym_entry != sym_end)
