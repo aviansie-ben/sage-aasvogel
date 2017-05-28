@@ -89,7 +89,11 @@ typedef void (*sched_thread_function)(void* arg);
 
 extern unsigned long long ticks;
 extern sched_process_queue process_run_queue;
+
+extern spinlock process_list_spinlock;
 extern sched_process* first_process;
+
+extern sched_process* kernel_process;
 
 /**
  * Initializes the CPU scheduler. This function should only be called once,
@@ -130,7 +134,6 @@ extern void sched_thread_wake(sched_thread* thread);
 
 extern void sched_thread_enqueue(sched_thread_queue* queue, sched_thread* thread);
 extern sched_thread* sched_thread_dequeue(sched_thread_queue* queue);
-extern void sched_thread_force_dequeue(sched_thread* thread);
 
 extern void sched_process_enqueue(sched_process_queue* queue, sched_process* process);
 extern sched_process* sched_process_dequeue(sched_process_queue* queue);
@@ -141,5 +144,6 @@ extern void sched_switch_any(regs32_t* r);
 
 extern void sched_yield(void);
 extern void sched_sleep(uint64 milliseconds);
+extern void sched_thread_end(void) __attribute__((noreturn));
 
 #endif

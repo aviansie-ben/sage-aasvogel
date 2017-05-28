@@ -29,9 +29,10 @@ static unsigned long long ticks_until_preempt = TICKS_BEFORE_PREEMPT;
 unsigned long long ticks = 0;
 sched_process_queue process_run_queue;
 
-static spinlock first_process_spinlock;
+spinlock process_list_spinlock;
 sched_process* first_process = NULL;
 
+sched_process* kernel_process;
 static sched_thread* idle_thread;
 
 static sched_thread_queue sleep_queue;
@@ -121,10 +122,10 @@ static sched_process* alloc_init_process(const char* name, page_context* address
     
     p->next = NULL;
     
-    spinlock_acquire(&first_process_spinlock);
+    spinlock_acquire(&process_list_spinlock);
     p->next = first_process;
     first_process = p;
-    spinlock_release(&first_process_spinlock);
+    spinlock_release(&process_list_spinlock);
     
     spinlock_acquire(&process_run_queue.lock);
     sched_process_enqueue(&process_run_queue, p);
@@ -194,7 +195,7 @@ static void yield_interrupt_handle(regs32_t* r)
 
 void sched_init(const boot_param* param)
 {
-    spinlock_init(&first_process_spinlock);
+    spinlock_init(&process_list_spinlock);
     
     kmem_pool_small_init(&process_pool, "sched_process pool", sizeof(sched_process), __alignof__(sched_process), 0);
     kmem_pool_small_init(&thread_pool, "sched_thread pool", sizeof(sched_thread), __alignof__(sched_thread), 0);
@@ -203,7 +204,7 @@ void sched_init(const boot_param* param)
     sched_process_queue_init(&process_run_queue);
     sched_thread_queue_init(&sleep_queue);
     
-    current_process = first_process = alloc_init_process("kernel", &kernel_page_context);
+    current_process = first_process = kernel_process = alloc_init_process("kernel", &kernel_page_context);
     if (current_process == NULL)
         crash("Failed to initialize kernel process!");
     
@@ -316,10 +317,14 @@ int sched_thread_create(sched_process* process, sched_thread_function func, void
 
 void sched_thread_destroy(sched_thread* thread)
 {
-    if (thread->in_queue != NULL)
-        sched_thread_force_dequeue(thread);
+    if (thread->status != STS_DEAD)
+        crash("Thread destroyed before being killed");
     
-    kmem_page_global_free(thread->stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
+    assert(thread->in_queue == NULL);
+    assert(thread->held_mutexes == NULL);
+    
+    if (thread->stack_low != NULL)
+        kmem_page_global_free(thread->stack_low, THREAD_STACK_SIZE / FRAME_SIZE);
     
     if (thread->process->first_thread == thread)
     {
@@ -335,7 +340,6 @@ void sched_thread_destroy(sched_thread* thread)
             prev_thread->next_in_process = thread->next_in_process;
     }
     
-    thread->status = STS_DEAD;
     klog(KLOG_LEVEL_DEBUG, "Destroyed thread %ld under process %ld (%s)\n", thread->tid, thread->process->pid, thread->process->name);
     
     kmem_pool_small_free(&thread_pool, thread);
@@ -388,46 +392,6 @@ sched_thread* sched_thread_dequeue(sched_thread_queue* queue)
         queue->last = NULL;
     
     return t;
-}
-
-void sched_thread_force_dequeue(sched_thread* thread)
-{
-    sched_thread* prev_thread;
-    sched_thread_queue* queue;
-    
-    while (true)
-    {
-        queue = thread->in_queue;
-        spinlock_acquire(&queue->lock);
-        
-        if (thread->in_queue == queue)
-        {
-            if (queue->first == thread)
-            {
-                queue->first = thread->next_in_queue;
-                
-                if (queue->last == thread)
-                    queue->last = NULL;
-            }
-            else
-            {
-                for (prev_thread = queue->first; prev_thread != NULL && prev_thread->next_in_queue != thread; prev_thread = prev_thread->next_in_queue) ;
-                
-                if (prev_thread != NULL)
-                    prev_thread->next_in_queue = thread->next_in_queue;
-                
-                if (queue->last == thread)
-                    queue->last = prev_thread;
-            }
-            
-            spinlock_release(&queue->lock);
-            return;
-        }
-        else
-        {
-            spinlock_release(&queue->lock);
-        }
-    }
 }
 
 void sched_process_enqueue(sched_process_queue* queue, sched_process* process)
@@ -688,4 +652,25 @@ void sched_sleep(uint64 milliseconds)
     
     sched_yield();
     eflags_load(eflags);
+}
+
+void sched_thread_end(void)
+{
+    // Note that we don't need to store EFLAGS, since this thread will never resume
+    asm volatile ("cli");
+    
+    if (current_thread->held_mutexes != NULL)
+        crash("Thread ended with held mutexes");
+    
+    current_thread->status = STS_DEAD;
+    
+    spinlock_acquire(&current_process->lock);
+    sched_thread_destroy(current_thread);
+    spinlock_release(&current_process->lock);
+    
+    current_thread = NULL;
+    
+    // After this yield, the function will never return
+    sched_yield();
+    crash("Thread resumed after it ended");
 }

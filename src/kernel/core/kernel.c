@@ -52,12 +52,8 @@ static void kernel_main2(const boot_param* param)
     vfs_init(param);
     
     acpi_init();
-    
-    while (true)
-    {
-        sched_thread_current()->status = STS_DEAD;
-        sched_yield();
-    }
+
+    sched_thread_end();
 }
 
 void kernel_main(multiboot_info* multiboot)
