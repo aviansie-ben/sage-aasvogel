@@ -1,0 +1,7 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+PROJECT("Sage Aasvogel initrd packer" C)
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g")
+
+FILE(GLOB_RECURSE C_SRCS *.c)
+ADD_EXECUTABLE(saif_packer ${C_SRCS})

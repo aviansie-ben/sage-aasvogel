@@ -5,7 +5,7 @@
 
 #include <memory/virt.h>
 
-static uint32 _initrd_read(struct fs_device* dev, uint64 sector, size_t num_sectors, uint8* buffer)
+static uint32 _initrd_read(struct vfs_device* dev, uint64 sector, size_t num_sectors, uint8* buffer)
 {
     if (sector + num_sectors < sector || sector + num_sectors > dev->num_sectors)
         return E_INVALID;
@@ -21,12 +21,12 @@ static uint32 _initrd_read(struct fs_device* dev, uint64 sector, size_t num_sect
     return E_SUCCESS;
 }
 
-static uint32 _initrd_write(struct fs_device* dev, uint64 sector, size_t num_sectors, const uint8* buffer)
+static uint32 _initrd_write(struct vfs_device* dev, uint64 sector, size_t num_sectors, const uint8* buffer)
 {
     return E_IO_ERROR;
 }
 
-static const fs_device_ops initrd_ops = {
+static const vfs_device_ops initrd_ops = {
     .read = _initrd_read,
     .write = _initrd_write
 };
@@ -61,7 +61,7 @@ static uint32 _initrd_map(const boot_param_module_info* mod, void** map_addr, ui
     return E_SUCCESS;
 }
 
-static uint32 _initrd_load(const boot_param_module_info* mod, fs_device** dev)
+static uint32 _initrd_load(const boot_param_module_info* mod, vfs_device** dev)
 {
     uint32 num_pages;
     void* map_addr;
@@ -69,13 +69,13 @@ static uint32 _initrd_load(const boot_param_module_info* mod, fs_device** dev)
     klog(KLOG_LEVEL_DEBUG, "Loading initrd from %s...\n", mod->name);
     
     _initrd_map(mod, &map_addr, &num_pages);
-    *dev = vfs_create_device("initrd", &initrd_ops, INITRD_SECTOR_SIZE, num_pages * FRAME_SIZE / INITRD_SECTOR_SIZE, map_addr);
+    *dev = vfs_device_create("initrd", &initrd_ops, INITRD_SECTOR_SIZE, num_pages * FRAME_SIZE / INITRD_SECTOR_SIZE, map_addr);
     
     klog(KLOG_LEVEL_DEBUG, "Loaded %dKiB from initrd\n", num_pages * FRAME_SIZE / 1024);
     return E_SUCCESS;
 }
 
-uint32 initrd_create(const boot_param* param, fs_device** dev)
+uint32 initrd_create(const boot_param* param, vfs_device** dev)
 {
     const boot_param_module_info* mod = boot_param_find_module(param, cmdline_get_str(param, "initrd", "/boot/initrd"));
     

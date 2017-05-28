@@ -2,17 +2,20 @@
 
 #include <fs/vfs.h>
 #include <fs/initrd.h>
+#include <fs/saif.h>
 
+#include <core/klog.h>
 #include <core/crash.h>
 
 #include <string.h>
 
 vfs_node vfs_root = {
+    .refcount = { .refcount = 1 },
+    
     .dev = NULL,
     .ops = NULL,
     
     .inode_no = 0,
-    .refcount = 1,
     .flags = VFS_TYPE_DIRECTORY,
     
     .size = 0,
@@ -28,31 +31,30 @@ uint32 vfs_null_op(void)
 }
 
 mutex vfs_list_lock;
-fs_type* vfs_type_first;
-fs_device* vfs_device_first;
+vfs_fs_type* vfs_type_first;
+vfs_device* vfs_device_first;
 
-mempool_small vfs_node_pool;
-mempool_small vfs_device_pool;
+static mempool_small vfs_node_mempool;
 
 void vfs_init(const boot_param* param)
 {
     // Initialize the memory pools
-    kmem_pool_small_init(&vfs_node_pool, "vfs_node", sizeof(vfs_node), __alignof__(vfs_node), 0);
-    kmem_pool_small_init(&vfs_device_pool, "fs_device", sizeof(fs_device), __alignof__(fs_device), 0);
+    kmem_pool_small_init(&vfs_node_mempool, "vfs_node", sizeof(vfs_node), __alignof__(vfs_node), 0);
     
-    fs_device* initrd_dev;
+    vfs_device* initrd_dev;
     
+    saif_init();
     if (initrd_create(param, &initrd_dev) != 0 || vfs_mount(&vfs_root, initrd_dev) != 0)
         crash("Failed to mount initrd");
 }
 
-void vfs_register_fs(fs_type* type)
+void vfs_fs_type_register(vfs_fs_type* type)
 {
     type->next = vfs_type_first;
     vfs_type_first = type;
 }
 
-void vfs_unregister_fs(fs_type* type)
+void vfs_fs_type_unregister(vfs_fs_type* type)
 {
     if (vfs_type_first == type)
     {
@@ -60,7 +62,7 @@ void vfs_unregister_fs(fs_type* type)
     }
     else
     {
-        fs_type* prev;
+        vfs_fs_type* prev;
         
         for (prev = vfs_type_first; prev != NULL && prev->next != type; prev = prev->next) ;
         
@@ -69,9 +71,9 @@ void vfs_unregister_fs(fs_type* type)
     }
 }
 
-fs_device* vfs_create_device(const char* name, const fs_device_ops* ops, uint32 sector_size, uint64 num_sectors, void* dev_extra)
+vfs_device* vfs_device_create(const char* name, const vfs_device_ops* ops, uint32 sector_size, uint64 num_sectors, void* dev_extra)
 {
-    fs_device* dev = kmem_pool_small_alloc(&vfs_device_pool, 0);
+    vfs_device* dev = kmem_pool_generic_alloc(sizeof(vfs_device), 0);
     
     if (dev != NULL)
     {
@@ -100,9 +102,9 @@ fs_device* vfs_create_device(const char* name, const fs_device_ops* ops, uint32 
     }
 }
 
-void vfs_destroy_device(fs_device* dev)
+void vfs_device_destroy(vfs_device* dev)
 {
-    fs_device* pdev;
+    vfs_device* pdev;
     
     // If the device currently has a filesystem, we must unload it before we can destroy the
     // device itself.
@@ -130,7 +132,82 @@ void vfs_destroy_device(fs_device* dev)
     }
     
     // And now we can finally free the memory allocated for the device
-    kmem_pool_small_free(&vfs_device_pool, dev);
+    kmem_pool_generic_free(dev);
+}
+
+uint32 vfs_node_cache_init(vfs_node_cache* cache, size_t size)
+{
+    mutex_init(&cache->lock);
+    
+    cache->size = size;
+    cache->nodes = kmem_pool_generic_alloc(sizeof(*cache->nodes) * size, 0);
+    
+    if (cache->nodes == NULL)
+    {
+        return E_NO_MEMORY;
+    }
+    
+    for (size_t i = 0; i < size; i++)
+        cache->nodes[i] = NULL;
+    
+    return E_SUCCESS;
+}
+
+bool vfs_node_cache_find(vfs_node_cache* cache, uint64 inode_no, vfs_node** node_out)
+{
+    vfs_node** evict = NULL;
+    
+    for (size_t i = 0; i < cache->size; i++)
+    {
+        if (cache->nodes[i] != NULL && cache->nodes[i]->inode_no == inode_no)
+        {
+            refcount_inc_unsafe(&cache->nodes[i]->refcount);
+            *node_out = cache->nodes[i];
+            return true;
+        }
+        
+        if ((evict == NULL || *evict != NULL) && cache->nodes[i] == NULL)
+        {
+            evict = &cache->nodes[i];
+        }
+        else if (evict == NULL && cache->nodes[i] != NULL && cache->nodes[i]->refcount.refcount == 0)
+        {
+            evict = &cache->nodes[i];
+        }
+    }
+    
+    if (evict == NULL)
+    {
+        // TODO Try to grow the size of the cache
+        *node_out = NULL;
+        return false;
+    }
+    
+    if (*evict != NULL)
+    {
+        if ((*evict)->ops != NULL)
+            (*evict)->ops->unload(*evict);
+        
+        (*evict)->refcount.refcount = 1;
+    }
+    else
+    {
+        *evict = kmem_pool_small_alloc(&vfs_node_mempool, 0);
+        
+        if (*evict == NULL)
+        {
+            *node_out = NULL;
+            return false;
+        }
+        
+        refcount_init(&(*evict)->refcount, NULL);
+        mutex_init(&(*evict)->lock);
+    }
+    
+    (*evict)->inode_no = inode_no;
+    
+    *node_out = *evict;
+    return false;
 }
 
 uint32 vfs_normalize_path(const char* cur_path, const char* path_in, char* path_out, size_t* len)
@@ -238,7 +315,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
     char path_part[VFS_NAME_LENGTH + 1];
     
     vfs_node* node = root;
-    vfs_node* next_node = NULL;
+    vfs_node* next_node;
     
     size_t i = 1;
     size_t j = 0;
@@ -246,52 +323,23 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
     
     uint32 err;
     
-    err = vfs_normalize_path(cur_path, path_in, path, NULL);
-    
-    if (err != E_SUCCESS)
-        return err;
-    
-    vfs_node_ref(root);
-    
-    while (path[i] != '\0')
+    void resolve_node(void)
     {
-        if (path[i] == VFS_SEPARATOR_CHAR)
+        while (true)
         {
-            // Find the next node along the path
-            path_part[j] = '\0';
-            
-            mutex_acquire(&node->lock);
-            if (node->ops != NULL)
-                err = node->ops->find(node, path_part, &next_node);
-            else
-                err = E_IO_ERROR; // The node was orphaned during our search
-            mutex_release(&node->lock);
-            
-            vfs_node_unref(node);
-            node = next_node;
-            
-            if (err != E_SUCCESS)
-                return err;
-            
-            // If the next node is a mountpoint, follow it
             mutex_acquire(&node->lock);
             if ((node->flags & VFS_FLAG_MOUNTPOINT) != 0)
             {
                 next_node = node->mounted->root_node;
                 
-                vfs_node_ref(next_node);
+                refcount_inc(&next_node->refcount);
                 
                 mutex_release(&node->lock);
-                vfs_node_unref(node);
+                refcount_dec(&node->refcount);
+                
                 node = next_node;
             }
-            else
-            {
-                mutex_release(&node->lock);
-            }
-            
-            // If the next node is a symlink, it should be resolved
-            if (follow_symlinks && VFS_TYPE(node->flags) == VFS_TYPE_SYMLINK)
+            else if (VFS_TYPE(node->flags) == VFS_TYPE_SYMLINK)
             {
                 char symlink_path[VFS_PATH_LENGTH + 1];
                 char old_path[VFS_PATH_LENGTH + 1];
@@ -299,22 +347,24 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
                 // Make sure we don't follow too many symlinks
                 if (symlinks++ == VFS_SYMLINK_DEPTH)
                 {
-                    vfs_node_unref(node);
-                    return E_LOOP;
+                    mutex_release(&node->lock);
+                    refcount_dec(&node->refcount);
+                    
+                    err = E_LOOP;
+                    return;
                 }
                 
                 // Read the symlink and discard the node reference
-                mutex_acquire(&node->lock);
                 if (node->ops != NULL)
                     err = node->ops->read_symlink(node, symlink_path);
                 else
                     err = E_IO_ERROR; // The node was orphaned during our search
-                mutex_release(&node->lock);
                 
-                vfs_node_unref(node);
+                mutex_release(&node->lock);
+                refcount_dec(&node->refcount);
                 
                 if (err != E_SUCCESS)
-                    return err;
+                    return;
                 
                 // Read the remainder of the path beyond the symlink
                 i++;
@@ -336,7 +386,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
                 err = vfs_normalize_path(path, symlink_path, path, &i);
                 
                 if (err != E_SUCCESS)
-                    return err;
+                    return;
                 
                 // If the symlink didn't end with a separator, make sure to add
                 // one.
@@ -351,19 +401,68 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
                 
                 // Make sure we didn't run out of space while concatenating.
                 if (i == VFS_PATH_LENGTH)
-                    return E_NAME_TOO_LONG;
+                {
+                    err = E_NAME_TOO_LONG;
+                    return;
+                }
                 
                 // Return back to the root node and start resolving nodes again
                 // with the new path.
                 i = 0;
                 node = root;
-                vfs_node_ref(root);
+                refcount_inc(&node->refcount);
             }
+            else
+            {
+                mutex_release(&node->lock);
+                
+                err = E_SUCCESS;
+                return;
+            }
+        }
+    }
+    
+    err = vfs_normalize_path(cur_path, path_in, path, NULL);
+    
+    if (err != E_SUCCESS)
+        return err;
+
+    refcount_inc(&node->refcount);
+    
+    // We need to try to resolve any links on the root node.
+    resolve_node();
+    if (err != E_SUCCESS)
+        return err;
+    
+    while (path[i] != '\0')
+    {
+        if (path[i] == VFS_SEPARATOR_CHAR)
+        {
+            // Find the next node along the path
+            path_part[j] = '\0';
+            
+            mutex_acquire(&node->lock);
+            if (node->ops != NULL)
+                err = node->ops->find(node, path_part, &next_node);
+            else
+                err = E_IO_ERROR; // The node was orphaned during our search
+            mutex_release(&node->lock);
+            
+            refcount_dec(&node->refcount);
+            node = next_node;
+            
+            if (err != E_SUCCESS)
+                return err;
+            
+            // Fully resolve the new node, following any links
+            resolve_node();
+            if (err != E_SUCCESS)
+                return err;
             
             // Make sure that we're now pointing at a directory
             if (VFS_TYPE(node->flags) != VFS_TYPE_DIRECTORY)
             {
-                vfs_node_unref(node);
+                refcount_dec(&node->refcount);
                 return E_NOT_DIR;
             }
             
@@ -373,7 +472,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
         {
             if (j == VFS_NAME_LENGTH)
             {
-                vfs_node_unref(node);
+                refcount_dec(&node->refcount);
                 return E_NAME_TOO_LONG;
             }
             
@@ -395,7 +494,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
             err = E_IO_ERROR; // The node was orphaned during our search
         mutex_release(&node->lock);
         
-        vfs_node_unref(node);
+        refcount_dec(&node->refcount);
         node = next_node;
         
         if (err != E_SUCCESS)
@@ -405,7 +504,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
     if (node_out != NULL)
         *node_out = node;
     else
-        vfs_node_unref(node);
+        refcount_dec(&node->refcount);
     
     if (canonical_path_out != NULL)
     {
@@ -416,28 +515,7 @@ uint32 vfs_resolve_path(vfs_node* root, const char* cur_path, const char* path_i
     return E_SUCCESS;
 }
 
-void vfs_node_ref(vfs_node* node)
-{
-    if (__atomic_fetch_add(&node->refcount, 1, __ATOMIC_SEQ_CST) == 0)
-        crash("vfs_node refcount race detected!");
-}
-
-void vfs_node_ref_unsafe(vfs_node* node)
-{
-    __atomic_fetch_add(&node->refcount, 1, __ATOMIC_SEQ_CST);
-}
-
-void vfs_node_unref(vfs_node* node)
-{
-    uint32 refcount = __atomic_sub_fetch(&node->refcount, 1, __ATOMIC_SEQ_CST);
-    
-    if (refcount == 0)
-        node->ops->unload(node);
-    else if (refcount == (uint32)-1)
-        crash("vfs_node refcount race detected!");
-}
-
-uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
+uint32 vfs_mount(vfs_node* mountpoint, vfs_device* dev)
 {
     uint32 errno;
     if (VFS_TYPE(mountpoint->flags) != VFS_TYPE_DIRECTORY)
@@ -445,7 +523,7 @@ uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
     
     if (dev->fs == NULL)
     {
-        fs_type* t = vfs_type_first;
+        vfs_fs_type* t = vfs_type_first;
         
         while (t != NULL)
         {
@@ -457,12 +535,10 @@ uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
             }
             else if (errno == E_IO_ERROR)
             {
-                mutex_release(&vfs_list_lock);
                 return E_IO_ERROR;
             }
             else if (errno == E_NO_MEMORY)
             {
-                mutex_release(&vfs_list_lock);
                 return E_NO_MEMORY;
             }
             
@@ -489,8 +565,9 @@ uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
     
     dev->mountpoint = mountpoint;
     mountpoint->mounted = dev;
+    mountpoint->flags |= VFS_FLAG_MOUNTPOINT;
     
-    vfs_node_ref(mountpoint);
+    refcount_inc(&mountpoint->refcount);
     mutex_release(&mountpoint->lock);
     
     return E_SUCCESS;
@@ -499,8 +576,8 @@ uint32 vfs_mount(vfs_node* mountpoint, fs_device* dev)
 uint32 vfs_unmount(vfs_node* mountpoint, uint32 force)
 {
     uint32 errno;
-    fs_device* dev;
-    fs_device* mdev;
+    vfs_device* dev;
+    vfs_device* mdev;
     
     // Check that the device is actually a mountpoint
     mutex_acquire(&mountpoint->lock);
@@ -540,7 +617,7 @@ uint32 vfs_unmount(vfs_node* mountpoint, uint32 force)
         mountpoint->flags &= (uint32)~VFS_FLAG_MOUNTPOINT;
         mountpoint->mounted = NULL;
         mutex_release(&mountpoint->lock);
-        vfs_node_unref(mountpoint);
+        refcount_dec(&mountpoint->refcount);
         
         if (force == 1)
             return errno;
