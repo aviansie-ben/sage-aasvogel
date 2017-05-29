@@ -1,7 +1,11 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 INCLUDE(ExternalProject)
 
-PROJECT("Sage Aasvogel" NONE)
+# This project is set to use C and ASM despite not directly using those languages. This is necessary
+# since this project file will be playing around with CMAKE_C_FLAGS and CMAKE_ASM_FLAGS; not
+# declaring the languages here leads to those variables being overwritten the first time the
+# compiler check is run and causing weird intermittent issues.
+PROJECT("Sage Aasvogel" C ASM)
 
 # klog options
 OPTION(KLOG_OUTPUT_TO_HOST_FILE "Output kernel logs to serial.out" ON)
@@ -27,6 +31,7 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${SAGE_AASVOGEL_
 SET(KERNEL_INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/kernel/include)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
+SET(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
 
 SET(QEMU_FLAGS -m 64 -s -cpu Westmere,-de,-syscall,-lm,-vme,enforce -smp 2 -drive file=sa.img,if=floppy,format=raw)
 
@@ -49,6 +54,10 @@ ENDIF()
 ADD_SUBDIRECTORY(acpica)
 ADD_SUBDIRECTORY(kernel)
 
+# saif_packer needs to be run as part of the build process, meaning that it must be compiled to run
+# on the host machine rather than the target machine. In order to do this, it must use the system's
+# default toolchain rather than the cross-compiler toolchain used by everything else here, which can
+# only be accomplished by including it as an external project.
 EXTERNALPROJECT_ADD(
     saif_packer
     DOWNLOAD_COMMAND ""

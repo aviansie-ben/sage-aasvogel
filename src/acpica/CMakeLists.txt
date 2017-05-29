@@ -1,8 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 PROJECT("ACPICA" C)
 
-SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-
 ADD_DEFINITIONS(-DSAGE_AASVOGEL)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -c -O3 -ffreestanding -std=gnu11 -fvisibility=hidden -fno-omit-frame-pointer")
