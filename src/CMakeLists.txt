@@ -7,6 +7,9 @@ INCLUDE(ExternalProject)
 # compiler check is run and causing weird intermittent issues.
 PROJECT("Sage Aasvogel" C ASM)
 
+# Version options
+OPTION(VERSION_INCLUDE_GIT_INFO "Include the git hash in the version number" ON)
+
 # klog options
 OPTION(KLOG_OUTPUT_TO_HOST_FILE "Output kernel logs to serial.out" ON)
 
@@ -36,6 +39,17 @@ SET(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOU
 SET(QEMU_FLAGS -m 64 -s -cpu Westmere,-de,-syscall,-lm,-vme,enforce -smp 2 -drive file=sa.img,if=floppy,format=raw)
 
 SET(NEXT_SERIAL_PORT 0)
+
+IF(VERSION_INCLUDE_GIT_INFO)
+    EXEC_PROGRAM(
+        "git"
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ARGS rev-parse --short HEAD
+        OUTPUT_VARIABLE GIT_VERSION
+    )
+
+    ADD_DEFINITIONS(-DVERSION_SUFFIX="-git-${GIT_VERSION}")
+ENDIF()
 
 IF(KLOG_OUTPUT_TO_HOST_FILE)
     SET(QEMU_FLAGS ${QEMU_FLAGS} -serial file:serial.out)
