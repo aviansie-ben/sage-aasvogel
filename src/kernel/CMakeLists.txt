@@ -3,19 +3,6 @@ PROJECT("Sage Aasvogel Kernel" C ASM)
 
 SET(CMAKE_EXE_LINKER_FLAGS "-T ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld")
 
-SET(WARNINGS "-Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings \
-              -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs \
-              -Winline -Wno-long-long -Wuninitialized -Wconversion -Wstrict-prototypes \
-              -Wno-unused-parameter -Wno-maybe-uninitialized")
-
-ADD_DEFINITIONS(-DSAGE_AASVOGEL)
-
-EXECUTE_PROCESS(COMMAND i686-elf-gcc "-print-file-name=libgcc.a" OUTPUT_VARIABLE LIBGCC_LOCATION)
-STRING(STRIP ${LIBGCC_LOCATION} LIBGCC_LOCATION)
-
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -c -g -ffreestanding -std=gnu11 ${WARNINGS}")
-SET(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -c -g -ffreestanding -D__ASSEMBLY__")
-
 SET(BOOT_CMDLINE "klog_console_level=8")
 
 IF(KLOG_OUTPUT_TO_HOST_FILE)
@@ -48,7 +35,7 @@ FILE(GLOB_RECURSE C_SRCS *.c)
 FILE(GLOB_RECURSE ASM_SRCS *.S)
 
 ADD_EXECUTABLE(kernel EXCLUDE_FROM_ALL ${C_SRCS} ${ASM_SRCS})
-TARGET_LINK_LIBRARIES(kernel ${LIBGCC_LOCATION} acpica)
+TARGET_LINK_LIBRARIES(kernel acpica)
 SET_TARGET_PROPERTIES(kernel PROPERTIES SUFFIX .bin)
 
 ADD_CUSTOM_TARGET(kernel-image

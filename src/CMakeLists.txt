@@ -33,8 +33,19 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${SAGE_AASVOGEL_
 
 SET(KERNEL_INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/kernel/include)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
-SET(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
+SET(WARNINGS "-Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings \
+              -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs \
+              -Winline -Wno-long-long -Wuninitialized -Wconversion -Wstrict-prototypes \
+              -Wno-unused-parameter -Wno-maybe-uninitialized")
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -ffreestanding -std=gnu11 -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"' ${WARNINGS}")
+SET(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -g -ffreestanding -D__ASSEMBLY__ -D__SOURCE_FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
+
+ADD_DEFINITIONS(-DSAGE_AASVOGEL)
+
+EXECUTE_PROCESS(COMMAND i686-elf-gcc "-print-file-name=libgcc.a" OUTPUT_VARIABLE LIBGCC_LOCATION)
+STRING(STRIP ${LIBGCC_LOCATION} LIBGCC_LOCATION)
+SET(CMAKE_C_STANDARD_LIBRARIES ${LIBGCC_LOCATION})
 
 SET(QEMU_FLAGS -m 64 -s -cpu Westmere,-de,-syscall,-lm,-vme,enforce -smp 2 -drive file=sa.img,if=floppy,format=raw)
 
