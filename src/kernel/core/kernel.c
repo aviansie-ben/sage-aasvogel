@@ -3,14 +3,14 @@
 
 #include <core/bootparam.h>
 
-#include <core/console.h>
-#include <core/cpuid.h>
-#include <core/gdt.h>
-#include <core/idt.h>
+#include <io/console.h>
+#include <cpu/cpuid.h>
+#include <cpu/gdt.h>
+#include <cpu/idt.h>
 #include <core/ksym.h>
 #include <core/gdb_stub.h>
 
-#include <core/tty.h>
+#include <io/tty.h>
 #include <core/klog.h>
 #include <assert.h>
 #include <core/version.h>
@@ -24,7 +24,7 @@
 
 #include <fs/vfs.h>
 
-#include <core/acpi.h>
+#include <io/acpi.h>
 
 static boot_param gparam;
 

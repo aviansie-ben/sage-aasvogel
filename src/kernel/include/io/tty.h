@@ -1,8 +1,8 @@
 #ifndef CORE_TTY_H
 #define CORE_TTY_H
 
-#include <core/console.h>
-#include <core/serial.h>
+#include <io/console.h>
+#include <io/serial.h>
 #include <lock/mutex.h>
 #include <lock/condvar.h>
 #include <stdarg.h>

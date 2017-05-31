@@ -3,8 +3,8 @@
 #include <memory/virt.h>
 #include <memory/pool.h>
 
-#include <core/cpuid.h>
-#include <core/msr.h>
+#include <cpu/cpuid.h>
+#include <cpu/msr.h>
 
 #include <core/crash.h>
 #include <assert.h>

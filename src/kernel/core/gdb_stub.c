@@ -1,11 +1,11 @@
 #include <core/gdb_stub.h>
 #include <core/klog.h>
-#include <core/serial.h>
+#include <io/serial.h>
 #include <lock/spinlock.h>
 #include <string.h>
 #include <core/crash.h>
 #include <printf.h>
-#include <core/idt.h>
+#include <cpu/idt.h>
 
 #ifdef GDB_STUB_ENABLED
 

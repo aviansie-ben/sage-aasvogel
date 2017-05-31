@@ -1,5 +1,5 @@
-#include <core/serial.h>
-#include <core/idt.h>
+#include <io/serial.h>
+#include <cpu/idt.h>
 #include <core/crash.h>
 #include <memory/pool.h>
 #include <hwio.h>

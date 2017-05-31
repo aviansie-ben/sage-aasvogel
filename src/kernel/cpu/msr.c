@@ -1,5 +1,5 @@
-#include <core/msr.h>
-#include <core/cpuid.h>
+#include <cpu/msr.h>
+#include <cpu/cpuid.h>
 
 bool msr_is_supported(void)
 {

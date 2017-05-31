@@ -1,5 +1,5 @@
 #include <core/klog.h>
-#include <core/tty.h>
+#include <io/tty.h>
 
 #include <stdarg.h>
 #include <core/crash.h>

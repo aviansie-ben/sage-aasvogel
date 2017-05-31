@@ -1,4 +1,4 @@
-#include <core/console.h>
+#include <io/console.h>
 #include <assert.h>
 #include <hwio.h>
 

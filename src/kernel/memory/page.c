@@ -1,6 +1,6 @@
-#include <core/cpuid.h>
-#include <core/msr.h>
-#include <core/idt.h>
+#include <cpu/cpuid.h>
+#include <cpu/msr.h>
+#include <cpu/idt.h>
 #include <memory/early.h>
 #include <memory/phys.h>
 #include <memory/page.h>

@@ -2,8 +2,8 @@
 #include <memory/pool.h>
 #include <string.h>
 #include <assert.h>
-#include <core/gdt.h>
-#include <core/idt.h>
+#include <cpu/gdt.h>
+#include <cpu/idt.h>
 #include <hwio.h>
 
 #include <core/klog.h>

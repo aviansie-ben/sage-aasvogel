@@ -1,5 +1,5 @@
-#include <core/tty.h>
-#include <core/console.h>
+#include <io/tty.h>
+#include <io/console.h>
 #include <assert.h>
 #include <string.h>
 

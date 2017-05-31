@@ -1,4 +1,4 @@
-#include <core/acpi.h>
+#include <io/acpi.h>
 #include <core/crash.h>
 #include <core/klog.h>
 #include <acpica/acpi.h>

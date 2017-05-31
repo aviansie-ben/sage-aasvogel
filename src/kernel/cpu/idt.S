@@ -1,7 +1,7 @@
 .intel_syntax noprefix
 .altmacro
 
-#include <core/idt.h>
+#include <cpu/idt.h>
 
 .section .text
 .globl idt_flush

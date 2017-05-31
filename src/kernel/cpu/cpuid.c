@@ -1,5 +1,5 @@
 #include <typedef.h>
-#include <core/cpuid.h>
+#include <cpu/cpuid.h>
 
 typedef union
 {

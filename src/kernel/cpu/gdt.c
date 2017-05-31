@@ -1,4 +1,4 @@
-#include <core/gdt.h>
+#include <cpu/gdt.h>
 #include <assert.h>
 
 static gdt_pointer gdt_ptr;

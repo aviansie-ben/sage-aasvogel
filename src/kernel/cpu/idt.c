@@ -1,4 +1,4 @@
-#include <core/idt.h>
+#include <cpu/idt.h>
 #include <hwio.h>
 #include <assert.h>
 

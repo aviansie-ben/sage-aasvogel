@@ -1,5 +1,5 @@
 #include <core/crash.h>
-#include <core/tty.h>
+#include <io/tty.h>
 #include <lock/spinlock.h>
 
 #include <string.h>
@@ -7,7 +7,7 @@
 
 #include <core/ksym.h>
 #include <core/klog.h>
-#include <core/serial.h>
+#include <io/serial.h>
 #include <core/gdb_stub.h>
 
 static bool lookup_name(unsigned int address, char* out, uint32 flags)
