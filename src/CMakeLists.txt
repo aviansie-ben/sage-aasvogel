@@ -122,8 +122,8 @@ ADD_CUSTOM_TARGET(image ALL
 ADD_CUSTOM_TARGET(pack-image
     COMMAND cp -f --preserve=ownership ${IMG_TEMPLATE} sa.img
     COMMAND mkdir ${IMG_MNT_DIR}
-    COMMAND mount -o loop sa.img ${IMG_MNT_DIR}
-    COMMAND cp -r ${SAGE_AASVOGEL_IMG_DIRECTORY}/* ${IMG_MNT_DIR}
+    COMMAND mount -o loop sa.img ${IMG_MNT_DIR} || (rmdir ${IMG_MNT_DIR} && exit 1)
+    COMMAND cp -r ${SAGE_AASVOGEL_IMG_DIRECTORY}/* ${IMG_MNT_DIR} || (umount ${IMG_MNT_DIR} && rmdir ${IMG_MNT_DIR} && exit 1)
     COMMAND sleep 1
     COMMAND umount ${IMG_MNT_DIR}
     COMMAND rm -rf ${IMG_MNT_DIR}
