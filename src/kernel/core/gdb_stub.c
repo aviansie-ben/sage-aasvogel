@@ -6,6 +6,7 @@
 #include <core/crash.h>
 #include <printf.h>
 #include <cpu/idt.h>
+#include <assert.h>
 
 #ifdef GDB_STUB_ENABLED
 
@@ -29,6 +30,9 @@ static char packet_buf[PACKET_BUF_SIZE];
 static size_t packet_buf_len;
 static bool packet_ready;
 
+static bool packet_sending;
+static uint8 packet_sending_checksum;
+
 static bool stepping;
 static bool suspended;
 static int stop_reason;
@@ -36,6 +40,11 @@ static int stop_reason;
 static int gdb_send_msg(const char* c)
 {
     return serial_send_spin(gdb_port, c, strlen(c));
+}
+
+static int gdb_send_char(char c)
+{
+    return serial_send_spin(gdb_port, &c, 1);
 }
 
 static int gdb_receive_char(char* c)
@@ -98,28 +107,99 @@ static uint8 gdb_calculate_checksum(const char* packet)
     return s;
 }
 
-static int gdb_send_packet(const char* packet)
+static int gdb_start_send_packet(void)
+{
+    int error;
+
+    assert(!packet_sending);
+
+    if ((error = gdb_send_msg("$")) != E_SUCCESS)
+        return error;
+
+    packet_sending = true;
+    packet_sending_checksum = 0;
+
+    return E_SUCCESS;
+}
+
+static int gdb_send_packet_fragment(const char* fragment)
+{
+    int error;
+
+    assert(packet_sending);
+
+    packet_sending_checksum = (uint8)(packet_sending_checksum + gdb_calculate_checksum(fragment));
+
+    if ((error = gdb_send_msg(fragment)) != E_SUCCESS)
+    {
+        packet_sending = false;
+        return error;
+    }
+
+    return E_SUCCESS;
+}
+
+static int gdb_send_packet_char(void* ctx, char c)
+{
+    int error;
+
+    assert(packet_sending);
+
+    packet_sending_checksum = (uint8)(packet_sending_checksum + c);
+
+    if ((error = gdb_send_char(c)) != E_SUCCESS)
+    {
+        packet_sending = false;
+        return error;
+    }
+
+    return E_SUCCESS;
+}
+
+static int gdb_send_packet_fragment_printf(const char* format, ...)
+{
+    va_list vararg;
+    int r;
+
+    va_start(vararg, format);
+    r = gprintf(format, 0xffffffffu, NULL, gdb_send_packet_char, vararg);
+    va_end(vararg);
+
+    return r;
+}
+
+static int gdb_end_send_packet(void)
 {
     char checksum[3];
     int error;
 
-    do
-    {
-        if ((error = gdb_send_msg("$")) != E_SUCCESS)
-            break;
+    assert(packet_sending);
 
-        if ((error = gdb_send_msg(packet)) != E_SUCCESS)
-            break;
+    packet_sending = false;
 
-        if ((error = gdb_send_msg("#")) != E_SUCCESS)
-            break;
+    if ((error = gdb_send_msg("#")) != E_SUCCESS)
+        return error;
 
-        if ((error = gdb_send_msg(gdb_format_checksum(checksum, gdb_calculate_checksum(packet)))) != E_SUCCESS)
-            break;
-    }
-    while (false);
+    if ((error = gdb_send_msg(gdb_format_checksum(checksum, packet_sending_checksum))) != E_SUCCESS)
+        return error;
 
-    return error;
+    return E_SUCCESS;
+}
+
+static int gdb_send_packet(const char* packet)
+{
+    int error;
+
+    if ((error = gdb_start_send_packet()) != E_SUCCESS)
+        return error;
+
+    if ((error = gdb_send_packet_fragment(packet)) != E_SUCCESS)
+        return error;
+
+    if ((error = gdb_end_send_packet()) != E_SUCCESS)
+        return error;
+
+    return E_SUCCESS;
 }
 
 static void gdb_write_reg(char* buf, uint32 val)
@@ -363,6 +443,27 @@ static void gdb_handle_step(const char* p, regs32* r)
     stepping = true;
 }
 
+static void gdb_handle_query_packet(const char* p, regs32* r)
+{
+    int error;
+
+    if (strncmp(p, "qSupported", strlen("qSupported")) == 0)
+    {
+        if ((error = gdb_start_send_packet()) != E_SUCCESS)
+            return;
+
+        if ((error = -gdb_send_packet_fragment_printf("PacketSize=%u", (uint32)(PACKET_BUF_SIZE - 1))) > 0)
+            return;
+
+        if ((error = gdb_end_send_packet()) != E_SUCCESS)
+            return;
+    }
+    else
+    {
+        gdb_send_packet("");
+    }
+}
+
 static void gdb_handle_packet(const char* p, regs32* r)
 {
     packet_ready = false;
@@ -395,6 +496,10 @@ static void gdb_handle_packet(const char* p, regs32* r)
             break;
         case 's':
             gdb_handle_step(p, r);
+            break;
+        case 'q':
+        case 'Q':
+            gdb_handle_query_packet(p, r);
             break;
         default:
             gdb_send_packet("");
